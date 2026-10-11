@@ -1233,7 +1233,7 @@ class Music(commands.Cog, name="MusicCog"):
             )
         embed.add_field(
             name="\u200b",
-            value="⭐ Nasi prezenterzy: **Fotoo77**, **Heda**, **Rafix*_Official** ",
+            value="⭐ Nasi prezenterzy: **Heda**, **Rafix*_Official** ",
             inline=False,
         )
         # Sekcja informacyjna

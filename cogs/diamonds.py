@@ -50,36 +50,65 @@ class DiamondsCog(commands.Cog):
         )
         return row["diamonds"] if row else 0
 
-    async def _upsert_diamonds(self, guild_id: int, user_id: int, delta: int) -> int:
+    async def _upsert_diamonds(self, guild_id: int, user_id: int, delta: int, nick: str | None = None) -> int:
         """
         Dodaje *delta* diamentów (może być ujemne).
+        Zapisuje także nick gracza, aby w phpMyAdmin i rankingu było od razu widoczne imię.
         Zwraca nowy stan konta (minimum 0).
         Działa bezbłędnie zarówno na MySQL (GameHost) jak i SQLite.
         """
         is_mysql = getattr(self.bot.db, "is_mysql", False)
 
         if is_mysql:
-            query = """
-                INSERT INTO user_diamonds (guild_id, user_id, diamonds)
-                VALUES (%s, %s, GREATEST(0, %s))
-                ON DUPLICATE KEY UPDATE
-                    diamonds = GREATEST(0, CAST(diamonds AS SIGNED) + %s)
-            """
-            await self.bot.db.execute(
-                query,
-                (guild_id, user_id, max(0, delta), delta)
-            )
+            if nick:
+                query = """
+                    INSERT INTO user_diamonds (guild_id, user_id, nick, diamonds)
+                    VALUES (%s, %s, %s, GREATEST(0, %s))
+                    ON DUPLICATE KEY UPDATE
+                        nick = VALUES(nick),
+                        diamonds = GREATEST(0, CAST(diamonds AS SIGNED) + %s)
+                """
+                await self.bot.db.execute(
+                    query,
+                    (guild_id, user_id, nick, max(0, delta), delta)
+                )
+            else:
+                query = """
+                    INSERT INTO user_diamonds (guild_id, user_id, diamonds)
+                    VALUES (%s, %s, GREATEST(0, %s))
+                    ON DUPLICATE KEY UPDATE
+                        diamonds = GREATEST(0, CAST(diamonds AS SIGNED) + %s)
+                """
+                await self.bot.db.execute(
+                    query,
+                    (guild_id, user_id, max(0, delta), delta)
+                )
         else:
-            query = """
-                INSERT INTO user_diamonds (guild_id, user_id, diamonds)
-                VALUES (?, ?, MAX(0, ?))
-                ON CONFLICT(guild_id, user_id) DO UPDATE
-                    SET diamonds = MAX(0, diamonds + ?)
-            """
-            await self.bot.db.execute(
-                query,
-                (guild_id, user_id, max(0, delta), delta)
-            )
+            if nick:
+                query = """
+                    INSERT INTO user_diamonds (guild_id, user_id, nick, diamonds)
+                    VALUES (?, ?, ?, MAX(0, ?))
+                    ON CONFLICT(guild_id, user_id) DO UPDATE
+                        SET nick = excluded.nick,
+                            diamonds = MAX(0, diamonds + ?)
+                """
+                await self.bot.db.execute(
+                    query,
+                    (guild_id, user_id, nick, max(0, delta), delta)
+                )
+            else:
+                query = """
+                    INSERT INTO user_diamonds (guild_id, user_id, diamonds)
+                    VALUES (?, ?, MAX(0, ?))
+                    ON CONFLICT(guild_id, user_id) DO UPDATE
+                        SET diamonds = MAX(0, diamonds + ?)
+                """
+                await self.bot.db.execute(
+                    query,
+                    (guild_id, user_id, max(0, delta), delta)
+                )
+
+        return await self._get_diamonds(guild_id, user_id)
 
     async def _resolve_user_name(self, guild: discord.Guild | None, user_id: int) -> str:
         """Zwraca czysty tekst nicku użytkownika bez oznaczania @."""
@@ -118,10 +147,12 @@ class DiamondsCog(commands.Cog):
     )
     async def diament(self, interaction: discord.Interaction) -> None:
         """Dodaje +1 diament użytkownikowi i wyświetla odświeżony embed prestiżu."""
+        user_nick = interaction.user.display_name if interaction.user else None
         new_total = await self._upsert_diamonds(
             interaction.guild_id,
             interaction.user.id,
-            DAILY_DIAMONDS
+            DAILY_DIAMONDS,
+            nick=user_nick
         )
 
         guild_name = interaction.guild.name if interaction.guild else "Serwer"
@@ -142,7 +173,7 @@ class DiamondsCog(commands.Cog):
             footer_text=f"Wpisz /topdiax, aby sprawdzić ranking • {guild_name}"
         )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=False)
 
     @app_commands.command(
         name="topdiax",
@@ -230,7 +261,12 @@ class DiamondsCog(commands.Cog):
         target: discord.Member,
         ilosc: app_commands.Range[int, 1, 1_000_000]
     ) -> None:
-        new_total = await self._upsert_diamonds(interaction.guild_id, target.id, ilosc)
+        new_total = await self._upsert_diamonds(
+            interaction.guild_id,
+            target.id,
+            ilosc,
+            nick=target.display_name
+        )
 
         embed = create_embed(
             title="🛡️ Pomyślnie Dodano Diamenty",
@@ -277,7 +313,12 @@ class DiamondsCog(commands.Cog):
             )
             return
 
-        new_total = await self._upsert_diamonds(interaction.guild_id, target.id, -ilosc)
+        new_total = await self._upsert_diamonds(
+            interaction.guild_id,
+            target.id,
+            -ilosc,
+            nick=target.display_name
+        )
         actual_removed = current - new_total
 
         embed = create_embed(
