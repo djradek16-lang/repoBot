@@ -1,9 +1,6 @@
 """
-Moduł śledzenia czasu spędzonego na kanałach głosowych.
-Zlicza czas per dzień i udostępnia komendę /stats z interaktywnym rankingiem TOP 10 —
-wybór okresu (Dzień / Tydzień / Miesiąc / Cały czas) odbywa się przyciskami pod embedem.
-Dodatkowo generuje codzienny raport o 23:59 oraz cotygodniowy raport dla Zarządu Organizacji
-wysyłany w każdą środę o godzinie 23:59 na dedykowany kanał ukryty.
+Moduł śledzenia czasu spędzonego na kanałach głosowych (MySQL).
+Zlicza czas per dzień i udostępnia komendę /stats z interaktywnym rankingiem TOP 10.
 """
 
 import logging
@@ -19,18 +16,10 @@ import config
 
 logger = logging.getLogger("AegisBot.Cogs.Activity")
 
-# Strefa czasowa, wg której liczone są "dni" (00:00-24:00) niezależnie od tego,
-# w jakiej strefie/UTC działa serwer hostujący bota. Bez tego dzień w bazie
-# przełączał się o godzinie systemowej serwera (np. 4:00 zamiast 0:00 czasu PL).
 TIMEZONE = ZoneInfo("Europe/Warsaw")
-
-# Godzina wysyłki automatycznego raportu dziennego i tygodniowego (czas w strefie TIMEZONE)
 DAILY_REPORT_TIME = dtime(hour=23, minute=59, tzinfo=TIMEZONE)
-
-# Godzina resetu dnia / wymuszonego zapisu trwających sesji (czas w strefie TIMEZONE)
 MIDNIGHT_RESET_TIME = dtime(hour=0, minute=0, tzinfo=TIMEZONE)
 
-# Kolejność, etykiety przycisków, tytuły w embedzie oraz liczba dni wstecz dla każdego zakresu
 SCOPE_ORDER = ["day", "week", "month", "all"]
 SCOPE_LABELS = {"day": "Dzień", "week": "Tydzień", "month": "Miesiąc", "all": "Cały czas"}
 SCOPE_TITLES = {"day": "Dzisiaj", "week": "Ostatnie 7 dni", "month": "Ostatnie 30 dni", "all": "Cały czas śledzenia"}
@@ -38,7 +27,6 @@ SCOPE_DAYS_BACK = {"day": 0, "week": 6, "month": 29, "all": None}
 
 
 def _format_duration(seconds: int) -> str:
-    """Formatuje czas w sekundach do czytelnej postaci, np. 12h 34m."""
     seconds = max(0, int(seconds))
     hours, remainder = divmod(seconds, 3600)
     minutes = remainder // 60
@@ -50,13 +38,10 @@ def _format_duration(seconds: int) -> str:
 
 
 def _clean_name(name: str) -> str:
-    """Escapuje markdown w nicku, żeby np. '_' czy '*' nie psuły formatowania embeda."""
     return discord.utils.escape_markdown(name)
 
 
 def _split_by_day(start: datetime, end: datetime) -> list[tuple[str, int]]:
-    """Dzieli przedział czasu na segmenty per dzień (na wypadek sesji przechodzącej przez północ).
-    Granica dnia to północ w strefie TIMEZONE, niezależnie od strefy wejściowych datetime."""
     start = start.astimezone(TIMEZONE)
     end = end.astimezone(TIMEZONE)
     segments = []
@@ -70,8 +55,6 @@ def _split_by_day(start: datetime, end: datetime) -> list[tuple[str, int]]:
 
 
 class ScopeButton(discord.ui.Button):
-    """Pojedynczy przycisk wyboru okresu rankingu — podświetla się na zielono, gdy jest aktywny."""
-
     def __init__(self, cog: "ActivityCog", scope: str, active: bool) -> None:
         super().__init__(
             label=SCOPE_LABELS[scope],
@@ -88,8 +71,6 @@ class ScopeButton(discord.ui.Button):
 
 
 class StatsView(discord.ui.View):
-    """Rząd przycisków pod embedem rankingu, umożliwiający przełączanie okresu."""
-
     def __init__(self, cog: "ActivityCog", active_scope: str) -> None:
         super().__init__(timeout=None)
         for scope in SCOPE_ORDER:
@@ -97,35 +78,26 @@ class StatsView(discord.ui.View):
 
 
 class ActivityCog(commands.Cog):
-    """Śledzi czas spędzony na kanałach głosowych i udostępnia interaktywny ranking TOP 10 (/stats)."""
-
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        # (guild_id, user_id) -> moment dołączenia do kanału głosowego (sesje jeszcze niezapisane do bazy)
         self._voice_join_times: dict[tuple[int, int], datetime] = {}
 
     async def _remember_name(self, guild_id: int, user_id: int, display_name: str) -> None:
-        """Zapamiętuje ostatnio znany nick użytkownika w bazie. Dzięki temu, gdy ktoś
-        opuści serwer (lub wypadnie z cache Discorda) i jego oznaczenie @ przestanie się
-        renderować, w raportach nadal można pokazać jego prawdziwy nick zamiast gołego ID."""
         try:
             await self.bot.db.execute(
                 """
                 INSERT INTO member_names (guild_id, user_id, display_name)
-                VALUES (?, ?, ?)
-                ON CONFLICT(guild_id, user_id) DO UPDATE SET display_name = excluded.display_name
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE display_name = VALUES(display_name)
                 """,
-                (guild_id, user_id, display_name)
+                (str(guild_id), str(user_id), display_name)
             )
+            if hasattr(self.bot.db, "commit"):
+                await self.bot.db.commit()
         except Exception as e:
             logger.debug(f"Nie udało się zapisać nicku {user_id} dla serwera {guild_id}: {e}")
 
     async def _resolve_name(self, guild: discord.Guild, user_id: int) -> tuple[str, str]:
-        """Zwraca (mention, nazwa_tekstowa) dla danego użytkownika.
-        Jeśli member jest w cache - normalny mention + jego aktualny nick (przy okazji
-        zapisywany do bazy jako 'ostatnio znany'). Jeśli NIE ma go w cache (np. wyszedł
-        z serwera) - mention i tak wyjdzie jako gołe <@id> (Discord tego nie naprawi),
-        ale nazwę tekstową bierzemy z bazy (ostatni znany nick) zamiast bezużytecznego ID."""
         member = guild.get_member(user_id)
         if member:
             name = _clean_name(member.display_name)
@@ -135,8 +107,8 @@ class ActivityCog(commands.Cog):
         mention = f"<@{user_id}>"
         try:
             row = await self.bot.db.fetchone(
-                "SELECT display_name FROM member_names WHERE guild_id = ? AND user_id = ?",
-                (guild.id, user_id)
+                "SELECT display_name FROM member_names WHERE guild_id = %s AND user_id = %s",
+                (str(guild.id), str(user_id))
             )
         except Exception:
             row = None
@@ -153,21 +125,15 @@ class ActivityCog(commands.Cog):
         key = (member.guild.id, member.id)
         afk_channel = member.guild.afk_channel
 
-        # Czy dany stan liczy się jako "obecny i śledzony" - czyli na kanale głosowym,
-        # ale NIE na kanale AFK (czas spędzony na AFK nie powinien się naliczać).
         was_tracked = before.channel is not None and before.channel != afk_channel
         should_track = after.channel is not None and after.channel != afk_channel
 
         if was_tracked and not should_track:
-            # Zakończenie śledzonej sesji: całkowite opuszczenie kanału głosowego
-            # albo przejście (ręczne lub automatyczne po czasie bezczynności) na kanał AFK.
             joined_at = self._voice_join_times.pop(key, None)
             if joined_at is None:
                 return
             await self._save_voice_time(member.guild.id, member.id, joined_at, datetime.now(TIMEZONE))
         elif not was_tracked and should_track:
-            # Start nowej śledzonej sesji: dołączenie z braku kanału albo powrót
-            # z kanału AFK na "normalny" kanał głosowy.
             self._voice_join_times[key] = datetime.now(TIMEZONE)
 
     async def _save_voice_time(self, guild_id: int, user_id: int, start: datetime, end: datetime) -> None:
@@ -179,15 +145,15 @@ class ActivityCog(commands.Cog):
             await self.bot.db.execute(
                 """
                 INSERT INTO voice_activity (guild_id, user_id, date, seconds)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(guild_id, user_id, date) DO UPDATE SET seconds = seconds + excluded.seconds
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE seconds = seconds + VALUES(seconds)
                 """,
-                (guild_id, user_id, day, seconds)
+                (str(guild_id), str(user_id), day, seconds)
             )
+        if hasattr(self.bot.db, "commit"):
+            await self.bot.db.commit()
 
     async def _flush_all_sessions(self) -> None:
-        """Zapisuje do bazy dotychczasowy czas WSZYSTKICH trwających sesji głosowych
-        i resetuje ich punkt startowy na 'teraz'."""
         now = datetime.now(TIMEZONE)
         for key, joined_at in list(self._voice_join_times.items()):
             guild_id, user_id = key
@@ -195,9 +161,6 @@ class ActivityCog(commands.Cog):
             self._voice_join_times[key] = now
 
     async def _recover_active_sessions(self) -> None:
-        """
-        Odtwarza stan osób AKTUALNIE obecnych na kanałach głosowych po starcie bota.
-        """
         await self.bot.wait_until_ready()
         now = datetime.now(TIMEZONE)
         recovered = 0
@@ -217,7 +180,6 @@ class ActivityCog(commands.Cog):
             logger.info(f"Odtworzono {recovered} trwających sesji głosowych po (re)połączeniu.")
 
     async def cog_unload(self) -> None:
-        """Zapisuje niedokończone sesje głosowe i zatrzymuje harmonogram przy wyłączeniu/przeładowaniu bota."""
         self.daily_report.cancel()
         self.weekly_report.cancel()
         self.flush_voice_sessions.cancel()
@@ -228,14 +190,14 @@ class ActivityCog(commands.Cog):
         self._voice_join_times.clear()
 
     async def cog_load(self) -> None:
-        # Tworzenie brakującej tabeli aktywności głosowej
+        # Użycie VARCHAR zamiast TEXT w tabelach z kluczami głównymi (wymóg MySQL)
         await self.bot.db.execute(
             """
             CREATE TABLE IF NOT EXISTS voice_activity (
-                guild_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                date TEXT NOT NULL,
-                seconds INTEGER NOT NULL,
+                guild_id VARCHAR(64) NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
+                date VARCHAR(32) NOT NULL,
+                seconds INT NOT NULL,
                 PRIMARY KEY (guild_id, user_id, date)
             )
             """
@@ -243,15 +205,16 @@ class ActivityCog(commands.Cog):
         await self.bot.db.execute(
             """
             CREATE TABLE IF NOT EXISTS member_names (
-                guild_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                display_name TEXT NOT NULL,
+                guild_id VARCHAR(64) NOT NULL,
+                user_id VARCHAR(64) NOT NULL,
+                display_name VARCHAR(255) NOT NULL,
                 PRIMARY KEY (guild_id, user_id)
             )
             """
         )
-        
-        # Uruchomienie odtwarzania sesji w tle
+        if hasattr(self.bot.db, "commit"):
+            await self.bot.db.commit()
+
         self.bot.loop.create_task(self._recover_active_sessions())
 
         self.daily_report.start()
@@ -261,7 +224,6 @@ class ActivityCog(commands.Cog):
 
     @tasks.loop(minutes=5)
     async def flush_voice_sessions(self) -> None:
-        """Co 5 minut zapisuje dotychczasowy czas trwających sesji głosowych do bazy."""
         await self._flush_all_sessions()
 
     @flush_voice_sessions.before_loop
@@ -270,7 +232,6 @@ class ActivityCog(commands.Cog):
 
     @tasks.loop(time=MIDNIGHT_RESET_TIME)
     async def midnight_reset(self) -> None:
-        """Wymusza natychmiastowy zapis wszystkich trwających sesji dokładnie o północy."""
         await self._flush_all_sessions()
 
     @midnight_reset.before_loop
@@ -282,8 +243,8 @@ class ActivityCog(commands.Cog):
         for guild in self.bot.guilds:
             try:
                 row = await self.bot.db.fetchone(
-                    "SELECT stats_channel_id FROM guild_config WHERE guild_id = ?",
-                    (guild.id,)
+                    "SELECT stats_channel_id FROM guild_config WHERE guild_id = %s",
+                    (str(guild.id),)
                 )
                 if not row or not row["stats_channel_id"]:
                     continue
@@ -305,14 +266,14 @@ class ActivityCog(commands.Cog):
     @tasks.loop(time=DAILY_REPORT_TIME)
     async def weekly_report(self) -> None:
         now = datetime.now(TIMEZONE)
-        if now.weekday() != 2: # Środa
+        if now.weekday() != 2:
             return
 
         for guild in self.bot.guilds:
             try:
                 row = await self.bot.db.fetchone(
-                    "SELECT weekly_stats_channel_id FROM guild_config WHERE guild_id = ?",
-                    (guild.id,)
+                    "SELECT weekly_stats_channel_id FROM guild_config WHERE guild_id = %s",
+                    (str(guild.id),)
                 )
                 if not row or not row["weekly_stats_channel_id"]:
                     continue
@@ -323,7 +284,6 @@ class ActivityCog(commands.Cog):
 
                 embed = await self.build_weekly_management_embed(guild)
                 await channel.send(embed=embed)
-                logger.info(f"Wysłano tygodniowy raport aktywności dla zarządu na serwerze {guild.name} ({guild.id}).")
             except Exception as e:
                 logger.error(f"Błąd wysyłania tygodniowego raportu aktywności dla zarządu (serwer {guild.id}): {e}", exc_info=True)
 
@@ -334,26 +294,26 @@ class ActivityCog(commands.Cog):
     async def build_stats_embed(self, guild: discord.Guild, scope: str) -> discord.Embed:
         label = SCOPE_TITLES[scope]
         days_back = SCOPE_DAYS_BACK[scope]
-        guild_id = guild.id
+        guild_id_str = str(guild.id)
 
         if days_back is None:
             rows = await self.bot.db.fetchall(
-                "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = ? GROUP BY user_id",
-                (guild_id,)
+                "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = %s GROUP BY user_id",
+                (guild_id_str,)
             )
             since_date = None
         else:
             since_date = (datetime.now(TIMEZONE).date() - timedelta(days=days_back)).isoformat()
             rows = await self.bot.db.fetchall(
-                "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = ? AND date >= ? GROUP BY user_id",
-                (guild_id, since_date)
+                "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = %s AND date >= %s GROUP BY user_id",
+                (guild_id_str, since_date)
             )
 
-        totals: dict[int, int] = {row["user_id"]: row["total_seconds"] or 0 for row in rows}
+        totals: dict[int, int] = {int(row["user_id"]): row["total_seconds"] or 0 for row in rows}
 
         now = datetime.now(TIMEZONE)
         for (g_id, user_id), joined_at in self._voice_join_times.items():
-            if g_id != guild_id:
+            if g_id != guild.id:
                 continue
             segments = _split_by_day(joined_at, now)
             if since_date is None:
@@ -384,16 +344,16 @@ class ActivityCog(commands.Cog):
         start_date_obj = now.date() - timedelta(days=6)
         start_date_str = start_date_obj.isoformat()
         date_range_str = f"{start_date_obj.strftime('%d.%m.%Y')} – {now.strftime('%d.%m.%Y')}"
-        guild_id = guild.id
+        guild_id_str = str(guild.id)
 
         rows = await self.bot.db.fetchall(
-            "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = ? AND date >= ? GROUP BY user_id",
-            (guild_id, start_date_str)
+            "SELECT user_id, SUM(seconds) AS total_seconds FROM voice_activity WHERE guild_id = %s AND date >= %s GROUP BY user_id",
+            (guild_id_str, start_date_str)
         )
-        totals: dict[int, int] = {row["user_id"]: row["total_seconds"] or 0 for row in rows}
+        totals: dict[int, int] = {int(row["user_id"]): row["total_seconds"] or 0 for row in rows}
 
         for (g_id, user_id), joined_at in self._voice_join_times.items():
-            if g_id != guild_id:
+            if g_id != guild.id:
                 continue
             segments = _split_by_day(joined_at, now)
             ongoing = sum(s for d, s in segments if d >= start_date_str)
@@ -443,77 +403,6 @@ class ActivityCog(commands.Cog):
         embed = await self.build_stats_embed(interaction.guild, default_scope)
         view = StatsView(self, default_scope)
         await interaction.followup.send(embed=embed, view=view)
-
-    @app_commands.command(
-        name="ustaw_kanal_zarzadu",
-        description="Ustawia ukryty kanał zarządu, na który co środę o 23:59 trafia tygodniowy raport aktywności."
-    )
-    @app_commands.describe(kanal="Wybierz kanał tekstowy dla Zarządu")
-    @is_administrator()
-    async def ustaw_kanal_zarzadu(self, interaction: discord.Interaction, kanal: discord.TextChannel) -> None:
-        permissions = kanal.permissions_for(interaction.guild.me)
-        if not permissions.send_messages or not permissions.embed_links:
-            await interaction.response.send_message(
-                embed=error_embed(
-                    "Brak Uprawnień",
-                    f"Bot nie ma uprawnień do wysyłania wiadomości lub dołączania embedów na kanale {kanal.mention}."
-                ),
-                ephemeral=True
-            )
-            return
-
-        await self.bot.db.execute(
-            """
-            INSERT INTO guild_config (guild_id, weekly_stats_channel_id) VALUES (?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET weekly_stats_channel_id = ?
-            """,
-            (interaction.guild_id, kanal.id, kanal.id)
-        )
-        await interaction.response.send_message(
-            embed=success_embed(
-                "Ustawiono Kanał Zarządu",
-                f"Kanał {kanal.mention} został pomyślnie ustawiony jako kanał raportów dla Zarządu."
-            )
-        )
-
-    @app_commands.command(
-        name="stats_zarzad_test",
-        description="[Admin] Wysyła próbny tygodniowy raport statystyk na skonfigurowany kanał zarządu."
-    )
-    @is_administrator()
-    async def stats_zarzad_test(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(ephemeral=True)
-        row = await self.bot.db.fetchone(
-            "SELECT weekly_stats_channel_id FROM guild_config WHERE guild_id = ?",
-            (interaction.guild_id,)
-        )
-        if not row or not row["weekly_stats_channel_id"]:
-            await interaction.followup.send(
-                embed=error_embed("Kanał Nieustawiony", "Najpierw ustaw kanał zarządu komendą `/ustaw_kanal_zarzadu`."),
-                ephemeral=True
-            )
-            return
-
-        channel = interaction.guild.get_channel(row["weekly_stats_channel_id"])
-        if not channel or not isinstance(channel, discord.TextChannel):
-            await interaction.followup.send(
-                embed=error_embed("Kanał Nie Istnieje", "Skonfigurowany kanał zarządu nie istnieje lub bot nie ma do niego dostępu."),
-                ephemeral=True
-            )
-            return
-
-        embed = await self.build_weekly_management_embed(interaction.guild)
-        try:
-            await channel.send(embed=embed)
-            await interaction.followup.send(
-                embed=success_embed("Wysłano Raport Testowy", f"Próbny raport tygodniowy został pomyślnie wysłany na {channel.mention}."),
-                ephemeral=True
-            )
-        except Exception as e:
-            await interaction.followup.send(
-                embed=error_embed("Błąd Wysyłania", f"Nie udało się wysłać wiadomości: `{e}`"),
-                ephemeral=True
-            )
 
 
 async def setup(bot: commands.Bot) -> None:
