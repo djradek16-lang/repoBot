@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisBot — Nowy Wygląd Embedów Diamentów (/diament & /topdiax)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-darkest: #0f1012;
+      --bg-darker: #1e1f22;
+      --bg-chat: #313338;
+      --bg-card: #2b2d31;
+      --bg-hover: #35373c;
+      --bg-input: #1e1f22;
+      --text-normal: #dbdee1;
+      --text-muted: #949ba4;
+      --text-header: #f2f3f5;
+      --text-link: #00a8fc;
+      --brand: #5865f2;
+      --brand-hover: #4752c4;
+      --diamond-cyan: #00e5ff;
+      --diamond-blue: #00a8fc;
+      --gold: #f1c40f;
+      --silver: #95a5a6;
+      --bronze: #e67e22;
+      --success: #23a55a;
+      --danger: #f23f43;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --font-main: "Inter", "gg sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 80% 20%, #0a192f 0%, #0c1017 45%, #08090b 100%);
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      padding: 30px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Nagłówek */
+    .header-banner {
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(88, 101, 242, 0.14) 100%);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 14px;
+      padding: 22px 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-icon {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.2) 0%, rgba(0, 119, 255, 0.3) 100%);
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+    }
+
+    .header-title-block h1 {
+      font-size: 21px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .header-title-block p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .tabs-nav {
+      display: flex;
+      gap: 10px;
+      background: var(--bg-card);
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-normal);
+    }
+
+    .tab-btn.active {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: rgba(0, 229, 255, 0.35);
+      color: #fff;
+    }
+
+    /* Symulator Discord */
+    .discord-window {
+      background: var(--bg-chat);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .discord-channel-bar {
+      background: #2b2d31;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .channel-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .channel-hash {
+      color: #80848e;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .channel-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: #f2f3f5;
+    }
+
+    .discord-chat {
+      padding: 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 380px;
+    }
+
+    .discord-message {
+      display: flex;
+      gap: 16px;
+    }
+
+    .msg-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00b0f4 0%, #5865f2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .msg-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .msg-author {
+      font-weight: 600;
+      font-size: 15px;
+      color: #f2f3f5;
+    }
+
+    .bot-badge {
+      background: #5865f2;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .msg-timestamp {
+      font-size: 12px;
+      color: #949ba4;
+    }
+
+    .slash-interaction-crumb {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #949ba4;
+    }
+
+    .slash-interaction-crumb .cmd-pill {
+      color: #00a8fc;
+      background: rgba(0, 168, 252, 0.1);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* EMBED DISCORDA */
+    .discord-embed {
+      background: #2b2d31;
+      border-left: 4px solid var(--diamond-cyan);
+      border-radius: 4px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 560px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .discord-embed.border-gold { border-left-color: var(--gold); }
+    .discord-embed.border-purple { border-left-color: #9b59b6; }
+
+    .embed-author {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #f2f3f5;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .embed-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .embed-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #dbdee1;
+    }
+
+    .embed-fields {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .embed-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #949ba4;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .field-value {
+      font-size: 13.5px;
+      color: #dbdee1;
+    }
+
+    .embed-footer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #949ba4;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 8px;
+    }
+
+    .footer-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #949ba4;
+    }
+
+    /* Leaderboard list */
+    .lb-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      background: rgba(0, 0, 0, 0.18);
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+
+    .lb-row.top-1 {
+      border-left: 3px solid var(--gold);
+      background: linear-gradient(90deg, rgba(241, 196, 15, 0.1) 0%, transparent 100%);
+    }
+
+    .lb-row.top-2 { border-left: 3px solid var(--silver); }
+    .lb-row.top-3 { border-left: 3px solid var(--bronze); }
+
+    .lb-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .lb-diamonds {
+      font-weight: 700;
+      color: var(--diamond-cyan);
+      font-family: var(--font-mono);
+    }
+
+    .btn-quick {
+      background: linear-gradient(135deg, #00b0f4 0%, #0077ff 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.1s;
+    }
+
+    .btn-quick:active {
+      transform: scale(0.97);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="header-banner">
+      <div class="header-left">
+        <div class="header-icon">💎</div>
+        <div class="header-title-block">
+          <h1>Nowe Embedy Diamentów (AegisBot)</h1>
+          <p>Stara mechanika zachowana (kliknięcie dodaje +1 diament) z nową, elegancką oprawą wizualną.</p>
+        </div>
+      </div>
+      <div>
+        <button class="btn-quick" onclick="addDiamond()">⚡ Kliknij, aby dodać diament (+1 💎)</button>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tab-cmd" onclick="setView('diament')">💎 Komenda /diament (Odbiór)</button>
+      <button class="tab-btn" id="tab-top" onclick="setView('topdiax')">🏆 Komenda /topdiax (Ranking)</button>
+      <button class="tab-btn" id="tab-admin" onclick="setView('admin')">🛡️ Komenda /diamentadmin (Dodaj/Usuń)</button>
+    </div>
+
+    <!-- DISCORD WINDOW -->
+    <div class="discord-window">
+      <div class="discord-channel-bar">
+        <div class="channel-left">
+          <span class="channel-hash">#</span>
+          <span class="channel-name">komendy</span>
+        </div>
+        <div style="font-size: 12px; color: #949ba4;">AegisBot • MySQL Active</div>
+      </div>
+
+      <div class="discord-chat">
+        <div class="discord-message">
+          <div class="msg-avatar">💎</div>
+          <div class="msg-body">
+            <div class="slash-interaction-crumb">
+              <span style="font-weight: 600; color: #dbdee1;">@Gracz</span>
+              <span>użył</span>
+              <span class="cmd-pill" id="crumbCmd">/diament</span>
+              <span style="color: #949ba4; font-size: 11px;">(Tylko Ty to widzisz • Ephemeral)</span>
+            </div>
+
+            <div class="msg-header">
+              <span class="msg-author">Team77</span>
+              <span class="bot-badge">BOT</span>
+              <span class="msg-timestamp">Dzisiaj o 15:40</span>
+            </div>
+
+            <div id="embedBox">
+              <!-- Renderowane w JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let diamondsCount = 17;
+    let currentTab = 'diament';
+
+    function addDiamond() {
+      diamondsCount += 1;
+      setView('diament');
+    }
+
+    function setView(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + (tab === 'diament' ? 'cmd' : tab)).classList.add('active');
+
+      const crumb = document.getElementById('crumbCmd');
+      const box = document.getElementById('embedBox');
+
+      if (tab === 'diament') {
+        crumb.innerText = '/diament';
+        box.innerHTML = `
+          <div class="discord-embed">
+            <div class="embed-author">
+              <span>💎 SYSTEM DIAMENTÓW • PRESTIŻ</span>
+            </div>
+            <div class="embed-title">
+              <span>Diament Pomyślnie Dodany! ✨</span>
+            </div>
+            <div class="embed-desc">
+              Do Twojego konta został pomyślnie dodany nowy diament.<br>
+              Zbieraj diamenty, aby wspinać się na szczyt rankingu serwera!
+            </div>
+
+            <div class="embed-fields">
+              <div class="embed-field">
+                <span class="field-name">💎 Dodano</span>
+                <span class="field-value"><b style="color: var(--diamond-cyan);">+1 💎</b></span>
+              </div>
+              <div class="embed-field">
+                <span class="field-name">📊 Łączny Stan Konta</span>
+                <span class="field-value"><b style="font-size: 15px; color: #fff;">${diamondsCount} 💎</b></span>
+              </div>
+            </div>
+
+            <div class="embed-footer">
+              <span>Użyj /topdiax, aby sprawdzić ranking serwera</span>
+              <span class="footer-dot"></span>
+              <span>Team77</span>
+            </div>
+          </div>
+        `;
+      } else if (tab === 'topdiax') {
+        crumb.innerText = '/topdiax';
+        box.innerHTML = `
+          <div class="discord-embed border-gold">
+            <div class="embed-author">
+              <span>🏆 RANKING DIAMENTÓW • SERWER TEAM77</span>
+            </div>
+            <div class="embed-title">
+              <span>Top 10 Posiadaczy Diamentów</span>
+            </div>
+            <div class="embed-desc">
+              Oto gracze z największą liczbą zebranych diamentów na serwerze:
+            </div>
+
+            <div style="margin-top: 4px;">
+              <div class="lb-row top-1">
+                <div class="lb-user"><span>🥇</span> <b>@Kamil</b></div>
+                <div class="lb-diamonds">145 💎</div>
+              </div>
+              <div class="lb-row top-2">
+                <div class="lb-user"><span>🥈</span> <b>@Marek</b></div>
+                <div class="lb-diamonds">89 💎</div>
+              </div>
+              <div class="lb-row top-3">
+                <div class="lb-user"><span>🥉</span> <b>@Ty</b></div>
+                <div class="lb-diamonds">${diamondsCount} 💎</div>
+              </div>
+              <div class="lb-row">
+                <div class="lb-user"><span>#4</span> <b>@Piotrek</b></div>
+                <div class="lb-diamonds">12 💎</div>
+              </div>
+              <div class="lb-row">
+                <div class="lb-user"><span>#5</span> <b>@Ania</b></div>
+                <div class="lb-diamonds">8 💎</div>
+              </div>
+            </div>
+
+            <div class="embed-footer">
+              <span>Wpisz /diament, aby powiększyć swój stan posiadania!</span>
+              <span class="footer-dot"></span>
+              <span>AegisBot</span>
+            </div>
+          </div>
+        `;
+      } else if (tab === 'admin') {
+        crumb.innerText = '/diamentadmin dodaj @Gracz 50';
+        box.innerHTML = `
+          <div class="discord-embed border-purple">
+            <div class="embed-author">
+              <span>🛡️ ADMINISTRACJA • MODYFIKACJA SALDA</span>
+            </div>
+            <div class="embed-title">
+              <span>Zaktualizowano Diamenty Gracza</span>
+            </div>
+            <div class="embed-desc">
+              Pomyślnie zmodyfikowano liczbę diamentów dla użytkownika <b>@Gracz</b>.
+            </div>
+
+            <div class="embed-fields">
+              <div class="embed-field">
+                <span class="field-name">👤 Użytkownik</span>
+                <span class="field-value"><b>@Gracz</b></span>
+              </div>
+              <div class="embed-field">
+                <span class="field-name">⚡ Zmiana Salda</span>
+                <span class="field-value"><b style="color: #23a55a;">+50 💎</b></span>
+              </div>
+              <div class="embed-field" style="grid-column: 1 / -1;">
+                <span class="field-name">💎 Nowy Stan Konta</span>
+                <span class="field-value"><b>${diamondsCount + 50} 💎</b></span>
+              </div>
+            </div>
+
+            <div class="embed-footer">
+              <span>Operacja wykonana przez Administratora</span>
+              <span class="footer-dot"></span>
+              <span>AegisBot Security</span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    setView('diament');
+  </script>
+</body>
+</html>

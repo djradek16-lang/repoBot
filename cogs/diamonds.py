@@ -1,10 +1,10 @@
 """
-Moduł systemu Diamentów.
+Moduł systemu Diamentów (Aegis Diamonds).
 Obsługuje zdobywanie, przeglądanie i zarządzanie diamentami przez użytkowników serwera.
 
 Komendy publiczne:
-  /diament       - Odbierz codzienny diament dla siebie.
-  /topdiax       - Ranking użytkowników z największą liczbą diamentów.
+  /diament       - Dodaje +1 diament do konta użytkownika.
+  /topdiax       - Prestiżowy ranking użytkowników z największą liczbą diamentów.
 
 Komendy administracyjne (grupa /diamentadmin):
   /diamentadmin dodaj  - Dodaje określoną liczbę diamentów wskazanemu użytkownikowi.
@@ -12,34 +12,38 @@ Komendy administracyjne (grupa /diamentadmin):
 """
 
 import logging
-
 import discord
 from discord import app_commands
 from discord.ext import commands
 
 from core.checks import is_administrator
-from utils.embeds import success_embed, error_embed, info_embed
+from utils.embeds import create_embed, error_embed
 
 logger = logging.getLogger("AegisBot.Cogs.Diamonds")
 
-# ─── Stałe ───────────────────────────────────────────────────────────────────
+# ─── Stałe Stylistyczne i Konfiguracja ─────────────────────────────────────────
 
 DIAMOND_EMOJI = "💎"
 DAILY_DIAMONDS = 1   # Ile diamentów dodaje /diament
-TOP_LIMIT = 10       # Ile miejsc pokazuje /topdiax
+TOP_LIMIT = 10       # Ile pozycji pokazuje /topdiax
+
+COLOR_DIAMOND = 0x00E5FF  # Błyszczący błękit diamentowy / cyan
+COLOR_GOLD = 0xF1C40F     # Złoto na podium rankingu
+COLOR_ADMIN = 0x9B59B6    # Fiolet administracyjny
+
 
 # ─── Cog ─────────────────────────────────────────────────────────────────────
 
 class DiamondsCog(commands.Cog):
-    """System diamentów – waluta prestiżu serwera."""
+    """System diamentów – waluta prestiżu serwera z nową oprawą wizualną."""
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    # ── Wewnętrzne helpery ────────────────────────────────────────────────────
+    # ── Wewnętrzne metody bazy danych (MySQL + SQLite) ─────────────────────────
 
     async def _get_diamonds(self, guild_id: int, user_id: int) -> int:
-        """Zwraca aktualną liczbę diamentów użytkownika (0 jeśli brak rekordu)."""
+        """Zwraca aktualną liczbę diamentów użytkownika (0 jeśli brak wpisu)."""
         row = await self.bot.db.fetchone(
             "SELECT diamonds FROM user_diamonds WHERE guild_id = ? AND user_id = ?",
             (guild_id, user_id)
@@ -47,18 +51,37 @@ class DiamondsCog(commands.Cog):
         return row["diamonds"] if row else 0
 
     async def _upsert_diamonds(self, guild_id: int, user_id: int, delta: int) -> int:
-        """Dodaje *delta* diamentów (może być ujemne). Zwraca nową wartość (min 0)."""
-        await self.bot.db.execute(
-            """
-            INSERT INTO user_diamonds (guild_id, user_id, diamonds)
-            VALUES (?, ?, MAX(0, ?))
-            ON CONFLICT(guild_id, user_id) DO UPDATE
-                SET diamonds = MAX(0, diamonds + ?)
-            """,
-            (guild_id, user_id, max(0, delta), delta)
-        )
-        return await self._get_diamonds(guild_id, user_id)
+        """
+        Dodaje *delta* diamentów (może być ujemne).
+        Zwraca nowy stan konta (minimum 0).
+        Działa bezbłędnie zarówno na MySQL (GameHost) jak i SQLite.
+        """
+        is_mysql = getattr(self.bot.db, "is_mysql", False)
 
+        if is_mysql:
+            query = """
+                INSERT INTO user_diamonds (guild_id, user_id, diamonds)
+                VALUES (%s, %s, GREATEST(0, %s))
+                ON DUPLICATE KEY UPDATE
+                    diamonds = GREATEST(0, CAST(diamonds AS SIGNED) + %s)
+            """
+            await self.bot.db.execute(
+                query,
+                (guild_id, user_id, max(0, delta), delta)
+            )
+        else:
+            query = """
+                INSERT INTO user_diamonds (guild_id, user_id, diamonds)
+                VALUES (?, ?, MAX(0, ?))
+                ON CONFLICT(guild_id, user_id) DO UPDATE
+                    SET diamonds = MAX(0, diamonds + ?)
+            """
+            await self.bot.db.execute(
+                query,
+                (guild_id, user_id, max(0, delta), delta)
+            )
+
+        return await self._get_diamonds(guild_id, user_id)
 
     # ── Komendy publiczne ─────────────────────────────────────────────────────
 
@@ -67,18 +90,36 @@ class DiamondsCog(commands.Cog):
         description="Dodaj sobie diament! 💎"
     )
     async def diament(self, interaction: discord.Interaction) -> None:
-        """Dodaje +1 diament użytkownikowi bez żadnych ograniczeń."""
-        new_total = await self._upsert_diamonds(interaction.guild_id, interaction.user.id, DAILY_DIAMONDS)
-
-        embed = success_embed(
-            "Diament Dodany!",
-            f"Twoja łączna liczba diamentów: **{new_total} {DIAMOND_EMOJI}**"
+        """Dodaje +1 diament użytkownikowi i wyświetla odświeżony embed prestiżu."""
+        new_total = await self._upsert_diamonds(
+            interaction.guild_id,
+            interaction.user.id,
+            DAILY_DIAMONDS
         )
+
+        guild_name = interaction.guild.name if interaction.guild else "Serwer"
+        avatar_url = interaction.user.display_avatar.url if interaction.user else None
+
+        embed = create_embed(
+            title="✨ Nowy diament!",
+            description=(
+                f"Do Twojego konta został pomyślnie dodany nowy diament!\n"
+            ),
+            color=COLOR_DIAMOND,
+            fields=[
+                {"name": "💎 OTRZYMANO", "value": f"**+{DAILY_DIAMONDS} {DIAMOND_EMOJI}**", "inline": True},
+                {"name": "📊 STAN KONTA", "value": f"**{new_total} {DIAMOND_EMOJI}**", "inline": True},
+            ],
+            author_name="SYSTEM DIAMENTÓW • KOPALNIA",
+            author_icon_url=avatar_url,
+            footer_text=f"Wpisz /topdiax, aby sprawdzić ranking • {guild_name}"
+        )
+
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(
         name="topdiax",
-        description="Pokazuje ranking użytkowników z największą liczbą diamentów. 💎"
+        description="Ranking diamentów na serwerze. 💎"
     )
     async def topdiax(self, interaction: discord.Interaction) -> None:
         """Tabela liderów diamentów – top 10 według liczby posiadanych diamentów."""
@@ -93,34 +134,58 @@ class DiamondsCog(commands.Cog):
             (interaction.guild_id, TOP_LIMIT)
         )
 
+        guild_name = interaction.guild.name if interaction.guild else "Serwer"
+
         if not rows:
-            await interaction.response.send_message(
-                embed=info_embed(
-                    f"{DIAMOND_EMOJI} Ranking Diamentów",
-                    "Nikt jeszcze nie zebrał żadnych diamentów na tym serwerze. Użyj `/diament`, żeby zacząć!"
-                )
+            empty_embed = create_embed(
+                title=f"{DIAMOND_EMOJI} Ranking Diamentów — {guild_name}",
+                description="Nikt jeszcze nie zebrał żadnych diamentów na tym serwerze.\nUżyj komendy `/diament`, aby zdobyć pierwszy kryształ!",
+                color=COLOR_DIAMOND,
+                footer_text=f"Bądź pierwszy na podium! • {guild_name}"
             )
+            await interaction.response.send_message(embed=empty_embed)
             return
 
         medals = ["🥇", "🥈", "🥉"]
         lines = []
-        for idx, row in enumerate(rows):
-            prefix = medals[idx] if idx < 3 else f"**#{idx + 1}**"
-            member = interaction.guild.get_member(row["user_id"])
-            name = member.mention if member else f"ID: {row['user_id']}"
-            lines.append(f"{prefix} {name} — **{row['diamonds']} {DIAMOND_EMOJI}**")
 
-        embed = info_embed(
-            f" Ranking Diamentów — {interaction.guild.name}",
-            "\n".join(lines)
+        total_server_diamonds = sum(row["diamonds"] for row in rows)
+
+        for idx, row in enumerate(rows):
+            member = interaction.guild.get_member(row["user_id"]) if interaction.guild else None
+            user_label = member.mention if member else f"`ID: {row['user_id']}`"
+
+            if idx < 3:
+                prefix = medals[idx]
+                lines.append(f"{prefix} **#{idx + 1}** {user_label} — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
+            else:
+                lines.append(f"▫️ **#{idx + 1}** {user_label} — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
+
+        embed = create_embed(
+            title=f"🏆 Top 10 Posiadaczy Diamentów — {guild_name}",
+            description=(
+                f"Oto najlepsi posiadacze diamentów z organizacji:\n\n"
+                + "\n".join(lines)
+            ),
+            color=COLOR_GOLD,
+            fields=[
+                {
+                    "name": "💎 Łącznie w TOP 10",
+                    "value": f"**{total_server_diamonds:,} {DIAMOND_EMOJI}**",
+                    "inline": False
+                }
+            ],
+            author_name=f"RANKING DIAMENTÓW • {guild_name.upper()}",
+            footer_text="Użyj /diament, aby powiększyć swój stan posiadania!"
         )
+
         await interaction.response.send_message(embed=embed)
 
     # ── Komendy administracyjne ───────────────────────────────────────────────
 
     diament_group = app_commands.Group(
         name="diamentadmin",
-        description="Zarządzanie diamentami użytkowników (tylko administratorzy)",
+        description="Zarządzanie diamentami dla administratorów",
         default_permissions=discord.Permissions(administrator=True)
     )
 
@@ -140,10 +205,18 @@ class DiamondsCog(commands.Cog):
         ilosc: app_commands.Range[int, 1, 1_000_000]
     ) -> None:
         new_total = await self._upsert_diamonds(interaction.guild_id, target.id, ilosc)
-        embed = success_embed(
-            "Dodano Diamenty",
-            f"Dodano **+{ilosc} {DIAMOND_EMOJI}** dla {target.mention}.\n"
-            f"Nowy stan konta: **{new_total} {DIAMOND_EMOJI}**"
+
+        embed = create_embed(
+            title="🛡️ Pomyślnie Dodano Diamenty",
+            description=f"Administrator zmodyfikował stan diamentów dla gracza {target.mention}.",
+            color=COLOR_ADMIN,
+            fields=[
+                {"name": "👤 UŻYTKOWNIK", "value": target.mention, "inline": True},
+                {"name": "⚡ DODANA KWOTA", "value": f"**+{ilosc:,} {DIAMOND_EMOJI}**", "inline": True},
+                {"name": "💎 NOWY STAN KONTA", "value": f"**{new_total:,} {DIAMOND_EMOJI}**", "inline": False},
+            ],
+            author_name="ADMINISTRACJA • ZARZĄDZANIE DIAMENTAMI",
+            footer_text=f"Wykonane przez: {interaction.user.display_name}"
         )
         await interaction.response.send_message(embed=embed)
         logger.info(
@@ -179,12 +252,19 @@ class DiamondsCog(commands.Cog):
             return
 
         new_total = await self._upsert_diamonds(interaction.guild_id, target.id, -ilosc)
-        actual_removed = current - new_total  # uwzględnia limit >= 0
+        actual_removed = current - new_total
 
-        embed = success_embed(
-            "Usunięto Diamenty",
-            f"Usunięto **-{actual_removed} {DIAMOND_EMOJI}** od {target.mention}.\n"
-            f"Nowy stan konta: **{new_total} {DIAMOND_EMOJI}**"
+        embed = create_embed(
+            title="🛡️ Pomyślnie Usunięto Diamenty",
+            description=f"Administrator odjął diamenty z konta gracza {target.mention}.",
+            color=COLOR_ADMIN,
+            fields=[
+                {"name": "👤 UŻYTKOWNIK", "value": target.mention, "inline": True},
+                {"name": "⚡ ODJĘTA KWOTA", "value": f"**-{actual_removed:,} {DIAMOND_EMOJI}**", "inline": True},
+                {"name": "💎 NOWY STAN KONTA", "value": f"**{new_total:,} {DIAMOND_EMOJI}**", "inline": False},
+            ],
+            author_name="ADMINISTRACJA • ZARZĄDZANIE DIAMENTAMI",
+            footer_text=f"Wykonane przez: {interaction.user.display_name}"
         )
         await interaction.response.send_message(embed=embed)
         logger.info(

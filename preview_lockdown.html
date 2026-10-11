@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisBot — Podgląd Trybu Blokady (/zablokuj)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-darkest: #111214;
+      --bg-darker: #1e1f22;
+      --bg-chat: #313338;
+      --bg-card: #2b2d31;
+      --bg-hover: #35373c;
+      --bg-input: #1e1f22;
+      --text-normal: #dbdee1;
+      --text-muted: #949ba4;
+      --text-header: #f2f3f5;
+      --text-link: #00a8fc;
+      --brand: #5865f2;
+      --brand-hover: #4752c4;
+      --lock-color: #f38020; /* Ciepły pomarańcz konserwacyjny */
+      --lock-color-dark: #d96810;
+      --success: #23a55a;
+      --danger: #f23f43;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --font-main: "Inter", "gg sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at top right, #1a1625 0%, #111214 60%, #0d0e10 100%);
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 980px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Nagłówek */
+    .header-banner {
+      background: linear-gradient(135deg, rgba(243, 128, 32, 0.15) 0%, rgba(88, 101, 242, 0.12) 100%);
+      border: 1px solid rgba(243, 128, 32, 0.3);
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .header-title h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-header);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-title h1 span.badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      background: rgba(243, 128, 32, 0.2);
+      color: var(--lock-color);
+      border: 1px solid var(--lock-color);
+      padding: 3px 8px;
+      border-radius: 20px;
+      letter-spacing: 0.5px;
+    }
+
+    .header-title p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    /* Panel kontrolny symulacji */
+    .controls-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-group label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    .control-group select,
+    .control-group input {
+      background: var(--bg-input);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-header);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .control-group select:focus,
+    .control-group input:focus {
+      border-color: var(--lock-color);
+      box-shadow: 0 0 0 2px rgba(243, 128, 32, 0.2);
+    }
+
+    .toggle-switch-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-input);
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #4e5058;
+      transition: .3s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--lock-color);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
+
+    .action-row {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+      margin-top: 4px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .btn {
+      background: var(--brand);
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: var(--brand-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #4e5058;
+    }
+
+    .btn-secondary:hover {
+      background: #6d6f78;
+    }
+
+    /* Okno symulacji Discord */
+    .discord-window {
+      background: var(--bg-chat);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      overflow: hidden;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+    }
+
+    .discord-window-header {
+      background: var(--bg-darker);
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .discord-channel-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-header);
+    }
+
+    .discord-channel-info svg {
+      color: var(--text-muted);
+    }
+
+    .discord-channel-topic {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 10px;
+      padding-left: 10px;
+      border-left: 1px solid var(--border-subtle);
+    }
+
+    .discord-messages-area {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      background: var(--bg-chat);
+    }
+
+    /* Pigułka wykonanej komendy */
+    .command-invoker {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      margin-left: 56px;
+    }
+
+    .command-pill {
+      background: rgba(88, 101, 242, 0.15);
+      color: #949cf7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+
+    /* Wiadomość bota */
+    .discord-msg {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      position: relative;
+    }
+
+    .bot-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #f38020 0%, #d83a56 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: white;
+      font-size: 16px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(243, 128, 32, 0.3);
+    }
+
+    .msg-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .msg-author-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .author-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-header);
+    }
+
+    .bot-tag {
+      background: var(--brand);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .msg-timestamp {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* EMBED DISCORDA */
+    .discord-embed {
+      background: var(--bg-card);
+      border-left: 4px solid var(--lock-color);
+      border-radius: 4px 8px 8px 4px;
+      padding: 16px 20px;
+      max-width: 580px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      position: relative;
+      animation: fadeIn .3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .embed-author {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--lock-color);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .embed-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.3;
+    }
+
+    .embed-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #dcddde;
+    }
+
+    .embed-desc strong {
+      color: #ffffff;
+    }
+
+    .embed-fields {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 4px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .embed-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .field-value {
+      font-size: 13.5px;
+      color: #f2f3f5;
+      line-height: 1.4;
+    }
+
+    .field-value code {
+      background: #1e1f22;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #f38020;
+    }
+
+    /* Pasek postępu/statusu */
+    .status-meter {
+      background: #1e1f22;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      color: var(--lock-color);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--lock-color);
+      box-shadow: 0 0 8px var(--lock-color);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .embed-footer {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Wiadomość ephemeralna */
+    .ephemeral-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .ephemeral-link {
+      color: var(--text-link);
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .ephemeral-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Podgląd normalnego wykonania */
+    .normal-exec-card {
+      background: var(--bg-card);
+      border-left: 4px solid var(--success);
+      border-radius: 4px 8px 8px 4px;
+      padding: 16px;
+      max-width: 580px;
+    }
+
+    .normal-exec-card h4 {
+      color: var(--success);
+      font-size: 15px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Karta wyjaśnienia architektury Coga */
+    .specs-card {
+      background: var(--bg-darker);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 22px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .specs-card h3 {
+      font-size: 16px;
+      color: var(--text-header);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .specs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .spec-item {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 14px;
+      border-radius: 8px;
+    }
+
+    .spec-item h5 {
+      color: #949ba4;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+
+    .spec-item p {
+      font-size: 13px;
+      color: #dbdee1;
+      line-height: 1.4;
+    }
+
+    .spec-item code {
+      background: #1e1f22;
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: #e0af68;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="wrapper">
+  
+  <!-- NAGŁÓWEK STRONY -->
+  <header class="header-banner">
+    <div class="header-title">
+      <h1>🛡️ System Blokady Technicznej <span class="badge">AegisBot /zablokuj</span></h1>
+      <p>Interaktywny podgląd embeda Discorda wyświetlanego po włączeniu trybu konserwacji bota</p>
+    </div>
+    <div>
+      <span style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">
+        Status testu: <span style="color: var(--success); font-weight: 700;">● GOTOWE DO WDROŻENIA</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- PANEL KONTROLNY TESTU -->
+  <section class="controls-panel">
+    <div class="control-group">
+      <label>Stan Blokady Bota</label>
+      <label class="toggle-switch-wrapper">
+        <span class="switch">
+          <input type="checkbox" id="toggle-lock" checked>
+          <span class="slider"></span>
+        </span>
+        <span id="toggle-label" style="font-size: 13.5px; font-weight: 700; color: var(--lock-color);">
+          🔒 Blokada WŁĄCZONA (/zablokuj)
+        </span>
+      </label>
+    </div>
+
+    <div class="control-group">
+      <label>Kto wykonuje komendę?</label>
+      <select id="select-user-role">
+        <option value="user">👤 Zwykły użytkownik / Gracz</option>
+        <option value="admin">👮 Administrator serwera</option>
+        <option value="owner">👑 Właściciel bota (Owner - Omija blokadę)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Powód prac (wybierz szablon)</label>
+      <select id="select-reason">
+        <option value="data_protect">🛡️ Konserwacja systemu i ochrona danych (Zalecane)</option>
+        <option value="db_migration">🗄️ Prace serwisowe bazy danych (MySQL)</option>
+        <option value="update_deploy">🔄 Wdrażanie aktualizacji bota i nowości</option>
+        <option value="custom">✍️ Wpisz własny powód poniżej...</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Szacowany czas trwania</label>
+      <input type="text" id="input-eta" value="~15 - 30 minut">
+    </div>
+
+    <div class="control-group" id="custom-reason-group" style="display: none; grid-column: 1 / -1;">
+      <label>Własna treść powodu</label>
+      <input type="text" id="input-custom-reason" placeholder="Wpisz powód blokady...">
+    </div>
+
+    <div class="action-row">
+      <span style="font-size: 12px; color: var(--text-muted); margin-right: auto;">
+        💡 Zmieniaj opcje powyżej, aby zobaczyć reakcję embeda na żywo.
+      </span>
+      <button class="btn btn-secondary" id="btn-simulate-command">
+        <span>⚡ Symuluj wpisanie /ranking</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- PODGLĄD DISCORDA -->
+  <div class="discord-window">
+    <div class="discord-window-header">
+      <div class="discord-channel-info">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M5.88657 21C5.58049 21 5.30447 20.8119 5.19664 20.5309C5.08882 20.2498 5.17127 19.9325 5.40277 19.738L8.98826 16.7328C9.17106 16.5796 9.27649 16.3533 9.27649 16.1147V10.2222C9.27649 6.23348 12.5099 3 16.4986 3C20.4873 3 23.7207 6.23348 23.7207 10.2222V16.1147C23.7207 16.3533 23.8261 16.5796 24.0089 16.7328L27.5944 19.738C27.8259 19.9325 27.9084 20.2498 27.8006 20.5309C27.6927 20.8119 27.4167 21 27.1106 21H5.88657Z"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M5.887 21a1.002 1.002 0 0 1-.69-1.469l2.804-4.856H4a1 1 0 1 1 0-2h4.516l1.155-2H5a1 1 0 1 1 0-2h5.827l2.805-4.856a1.002 1.002 0 0 1 1.736 1.002L12.564 10.675H17.5a1 1 0 1 1 0 2h-4.32l-1.156 2H16a1 1 0 1 1 0 2h-5.632l-2.805 4.856a1.001 1.001 0 0 1-.869.469z"/>
+        </svg>
+        <span>💬 dyskusja</span>
+        <span class="discord-channel-topic">Serwer Team77 • Podgląd interakcji bota</span>
+      </div>
+      <div style="font-size: 12px; color: var(--text-muted);">
+        AegisBot v2.5
+      </div>
+    </div>
+
+    <div class="discord-messages-area">
+      
+      <!-- Pigułka wywołania komendy -->
+      <div class="command-invoker">
+        <span id="invoker-name">👤 Użytkownik</span>
+        <span>użył</span>
+        <span class="command-pill" id="command-name-display">/ranking</span>
+      </div>
+
+      <!-- Treść wiadomości bota -->
+      <div class="discord-msg">
+        <div class="bot-avatar">77</div>
+        <div class="msg-body">
+          <div class="msg-author-row">
+            <span class="author-name">Team77</span>
+            <span class="bot-tag">BOT</span>
+            <span class="msg-timestamp">Dzisiaj o 15:30</span>
+          </div>
+
+          <!-- WARIANT 1: EMBED BLOKADY TECHNICZNEJ -->
+          <div class="discord-embed" id="lockdown-embed">
+            
+            <div class="embed-author">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 1ZM12 7C13.1 7 14 7.9 14 9V10H15C15.55 10 16 10.45 16 11V16C16 16.55 15.55 17 15 17H9C8.45 17 8 16.55 8 16V11C8 10.45 8.45 10 9 10H10V9C10 7.9 10.9 7 12 7ZM12 8.2C11.56 8.2 11.2 8.56 11.2 9V10H12.8V9C12.8 8.56 12.44 8.2 12 8.2Z"/>
+              </svg>
+              <span>SYSTEM BEZPIECZEŃSTWA AEGISBOT</span>
+            </div>
+
+            <div class="embed-title">
+              <span>🔒 Prace Techniczne & Ochrona Danych</span>
+            </div>
+
+            <div class="embed-desc">
+              Wszystkie komendy publiczne oraz administracyjne zostały <strong>chwilowo wyłączone</strong> przez właściciela bota.<br>
+              Działanie to ma na celu <strong>zapewnienie pełnego bezpieczeństwa</strong> i integralności danych podczas prac konserwacyjnych.
+            </div>
+
+            <div class="embed-fields">
+              <div class="embed-field">
+                <div class="field-name">📋 Powód blokady</div>
+                <div class="field-value" id="embed-reason-val">
+                  Konserwacja systemu i ochrona danych
+                </div>
+              </div>
+
+              <div class="embed-field">
+                <div class="field-name">⏳ Szacowany czas</div>
+                <div class="field-value" id="embed-eta-val">
+                  <code>~15 - 30 minut</code>
+                </div>
+              </div>
+
+              <div class="embed-field full">
+                <div class="field-name">🛡️ Bezpieczeństwo Twoich Danych</div>
+                <div class="field-value">
+                  Wszystkie statystyki, poziomy <strong>XP</strong>, diamenty oraz wpłaty są w pełni bezpieczne w nowej bazie MySQL. Po zakończeniu prac wszystkie systemy wznowią pracę automatycznie.
+                </div>
+              </div>
+            </div>
+
+            <div class="status-meter">
+              <div class="status-tag">
+                <span class="status-dot"></span>
+                <span>TRYB KONSERWACJI: AKTYWNY</span>
+              </div>
+              <div style="color: var(--text-muted); font-size: 11px;">
+                Dostęp: <strong style="color: #ffffff;">Tylko Właściciel</strong>
+              </div>
+            </div>
+
+            <div class="embed-footer">
+              <span>Team77 • Blokada administracyjna • Przepraszamy za utrudnienia</span>
+            </div>
+
+          </div>
+
+          <!-- WARIANT 2: EMBED WYNIKU NORMALNEGO (GDY ODBLOKOWANY LUB OWNER) -->
+          <div class="normal-exec-card" id="normal-exec-card" style="display: none;">
+            <h4>✅ Wykonano pomyślnie</h4>
+            <p style="font-size: 13.5px; color: var(--text-normal);">
+              Komenda została wykonana bez przeszkód (bot działa w trybie normalnym lub jesteś właścicielem bota).
+            </p>
+          </div>
+
+          <!-- Informacja o wiadomości ephemeral -->
+          <div class="ephemeral-note">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+            </svg>
+            <span>Tylko Ty możesz to zobaczyć • </span>
+            <span class="ephemeral-link">Odrzuć tę wiadomość</span>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SPECYFIKACJA FUNKCJONALNOŚCI COGA -->
+  <section class="specs-card">
+    <h3>⚙️ Jak będzie działał ten Cog w kodzie bota:</h3>
+    <div class="specs-grid">
+      <div class="spec-item">
+        <h5>Komenda Włączająca</h5>
+        <p><code>/zablokuj [powod] [czas_trwania]</code></p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          Dostępna <strong>tylko dla Ciebie</strong> (ID Właściciela). Pozwala opcjonalnie podać powód i szacowany czas.
+        </p>
+      </div>
+
+      <div class="spec-item">
+        <h5>Komenda Wyłączająca</h5>
+        <p><code>/odblokuj</code></p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          Błyskawicznie przywraca standardowe działanie wszystkich komend dla każdego.
+        </p>
+      </div>
+
+      <div class="spec-item">
+        <h5>Globalny Filtr Zdarzeń</h5>
+        <p>Przechwytywanie w <code>global_interaction_check</code></p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          Gdy blokada jest włączona, <strong>żaden inny Cog ani komenda się nie wykona</strong> – bot natychmiast odsyła ten embed w trybie <code>ephemeral=True</code> (widoczny tylko dla osoby klikającej).
+        </p>
+      </div>
+
+      <div class="spec-item">
+        <h5>Bypass dla Właściciela</h5>
+        <p>Właściciel bota <strong>zawsze ma dostęp</strong></p>
+        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+          Jako Owner możesz swobodnie testować komendy bota nawet podczas aktywnej blokady!
+        </p>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Logika interaktywna podglądu
+  const toggleLock = document.getElementById('toggle-lock');
+  const toggleLabel = document.getElementById('toggle-label');
+  const selectRole = document.getElementById('select-user-role');
+  const selectReason = document.getElementById('select-reason');
+  const inputEta = document.getElementById('input-eta');
+  const customReasonGroup = document.getElementById('custom-reason-group');
+  const inputCustomReason = document.getElementById('input-custom-reason');
+  const invokerName = document.getElementById('invoker-name');
+  const lockdownEmbed = document.getElementById('lockdown-embed');
+  const normalExecCard = document.getElementById('normal-exec-card');
+  const embedReasonVal = document.getElementById('embed-reason-val');
+  const embedEtaVal = document.getElementById('embed-eta-val');
+  const btnSimulate = document.getElementById('btn-simulate-command');
+
+  const reasonTemplates = {
+    data_protect: "Konserwacja systemu i ochrona danych",
+    db_migration: "Prace serwisowe bazy danych (MySQL) oraz weryfikacja kopii zapasowej",
+    update_deploy: "Wdrażanie dużej aktualizacji i nowości w bocie Team77",
+    custom: ""
+  };
+
+  function updateView() {
+    const isLocked = toggleLock.checked;
+    const role = selectRole.value;
+    const reasonKey = selectReason.value;
+    const etaText = inputEta.value.trim() || "~15 - 30 minut";
+
+    // Etykieta przełącznika
+    if (isLocked) {
+      toggleLabel.textContent = "🔒 Blokada WŁĄCZONA (/zablokuj)";
+      toggleLabel.style.color = "var(--lock-color)";
+    } else {
+      toggleLabel.textContent = "🔓 Blokada WYŁĄCZONA (Normalna praca)";
+      toggleLabel.style.color = "var(--success)";
+    }
+
+    // Obsługa własnego powodu
+    if (reasonKey === 'custom') {
+      customReasonGroup.style.display = 'flex';
+      embedReasonVal.textContent = inputCustomReason.value.trim() || "Prace techniczne";
+    } else {
+      customReasonGroup.style.display = 'none';
+      embedReasonVal.textContent = reasonTemplates[reasonKey];
+    }
+
+    embedEtaVal.innerHTML = `<code>${etaText}</code>`;
+
+    // Kto wywołuje
+    if (role === 'owner') {
+      invokerName.textContent = "👑 Właściciel Bota (Owner)";
+    } else if (role === 'admin') {
+      invokerName.textContent = "👮 Administrator";
+    } else {
+      invokerName.textContent = "👤 Zwykły gracz";
+    }
+
+    // Czy wyświetlić embed blokady czy sukces
+    if (isLocked) {
+      if (role === 'owner') {
+        // Owner omija blokadę
+        lockdownEmbed.style.display = 'none';
+        normalExecCard.style.display = 'block';
+        normalExecCard.innerHTML = `
+          <h4 style="color: #5865f2;">👑 Ominięcie Blokady (Właściciel Bota)</h4>
+          <p style="font-size: 13.5px; color: var(--text-normal);">
+            Blokada jest aktywna dla innych, ale jako właściciel bota masz pełen dostęp do wykonania komendy <code>/ranking</code>.
+          </p>
+        `;
+      } else {
+        lockdownEmbed.style.display = 'flex';
+        normalExecCard.style.display = 'none';
+      }
+    } else {
+      lockdownEmbed.style.display = 'none';
+      normalExecCard.style.display = 'block';
+      normalExecCard.innerHTML = `
+        <h4>✅ Wykonano pomyślnie</h4>
+        <p style="font-size: 13.5px; color: var(--text-normal);">
+          Bot działa w trybie standardowym — komenda <code>/ranking</code> została zrealizowana normalnie.
+        </p>
+      `;
+    }
+  }
+
+  // Event listenery
+  toggleLock.addEventListener('change', updateView);
+  selectRole.addEventListener('change', updateView);
+  selectReason.addEventListener('change', updateView);
+  inputEta.addEventListener('input', updateView);
+  inputCustomReason.addEventListener('input', updateView);
+
+  btnSimulate.addEventListener('click', () => {
+    // Efekt mignięcia/odświeżenia
+    const target = lockdownEmbed.style.display !== 'none' ? lockdownEmbed : normalExecCard;
+    target.style.opacity = '0.3';
+    setTimeout(() => {
+      target.style.opacity = '1';
+    }, 150);
+  });
+
+  updateView();
+</script>
+
+</body>
+</html>

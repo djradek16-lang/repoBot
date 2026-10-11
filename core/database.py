@@ -80,6 +80,25 @@ def convert_query_to_mysql(query: str) -> str:
         flags=re.IGNORECASE
     )
 
+    # Zamiana ON CONFLICT (...) DO UPDATE SET na MariaDB/MySQL ON DUPLICATE KEY UPDATE
+    q = re.sub(
+        r"\bON\s+CONFLICT\s*\([^)]*\)\s*DO\s+UPDATE\s+SET\b",
+        "ON DUPLICATE KEY UPDATE",
+        q,
+        flags=re.IGNORECASE
+    )
+
+    # Zamiana SQLite excluded.kolumna na MariaDB/MySQL VALUES(kolumna)
+    q = re.sub(
+        r"\bexcluded\.([a-zA-Z0-9_]+)\b",
+        r"VALUES(\1)",
+        q,
+        flags=re.IGNORECASE
+    )
+
+    # Zamiana dwuargumentowego MAX(0, ...) na MySQL GREATEST(0, ...)
+    q = re.sub(r"\bMAX\s*\(\s*0\s*,", "GREATEST(0,", q, flags=re.IGNORECASE)
+
     # Zamiana PRAGMA table_info na SHOW COLUMNS
     pragma_match = re.search(r"PRAGMA\s+table_info\s*\(\s*([a-zA-Z0-9_]+)\s*\)", q, flags=re.IGNORECASE)
     if pragma_match:
