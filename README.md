@@ -129,8 +129,34 @@ pip install -r requirements.txt
 DISCORD_TOKEN=TWÓJ_TAJNY_TOKEN_TUTAJ
 OWNER_ID=TWÓJ_DISCORD_ID_UŻYTKOWNIKA
 TEST_GUILD_ID=ID_SERWERA_TESTOWEGO_(OPCJONALNIE)
+
+# Baza Danych MySQL (GameHost / VPS / Zewnętrzna)
+DB_TYPE=mysql
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=uzytkownik_bazy
+MYSQL_PASSWORD=haslo_bazy
+MYSQL_DATABASE=nazwa_bazy
 ```
-*Uwaga: Wpisanie `TEST_GUILD_ID` powoduje natychmiastową synchronizację slash commands na danym serwerze bez oczekiwania na globalne odświeżenie.*
+*Uwaga: Jeśli nie podasz danych MySQL lub ustawisz `DB_TYPE=sqlite`, bot automatycznie korzysta z lokalnej bazy SQLite (`data/bot.db`).*
+
+### 🗄️ Migracja z SQLite do MySQL
+Jeśli masz już dane w `data/bot.db` i chcesz przenieść wszystko (poziomy, zgłoszenia, wpłaty, logi itp.) do bazy MySQL:
+```bash
+python migrate_sqlite_to_mysql.py
+```
+
+### 🔄 Aktualizacje plików na hoście przez Git
+Bot posiada wsparcie dla wygodnych aktualizacji:
+* **Na serwerze Linux / GameHost**:
+  ```bash
+  bash update.sh
+  ```
+* **Bezpośrednio z poziomu Discorda**: jako właściciel bota wpisz komendę slash `/owner git_pull` – bot automatycznie pobierze zmiany z repozytorium Git i przeładuje moduły bez przestojów!
+* **W konsoli Windows**:
+  ```cmd
+  update.bat
+  ```
 
 5. W zakładce **OAuth2 -> URL Generator** zaznacz:
    * Scopes: `bot`, `applications.commands`
