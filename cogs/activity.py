@@ -169,8 +169,6 @@ class ActivityCog(commands.Cog):
             # Start nowej śledzonej sesji: dołączenie z braku kanału albo powrót
             # z kanału AFK na "normalny" kanał głosowy.
             self._voice_join_times[key] = datetime.now(TIMEZONE)
-        # else: brak zmiany stanu śledzenia (np. zmiana między dwoma zwykłymi kanałami
-        # - sesja trwa dalej bez przerywania, albo osoba była i nadal jest na AFK).
 
     async def _save_voice_time(self, guild_id: int, user_id: int, start: datetime, end: datetime) -> None:
         if end <= start:
@@ -189,52 +187,18 @@ class ActivityCog(commands.Cog):
 
     async def _flush_all_sessions(self) -> None:
         """Zapisuje do bazy dotychczasowy czas WSZYSTKICH trwających sesji głosowych
-        i resetuje ich punkt startowy na 'teraz'. Wspólna logika używana zarówno przez
-        cykliczny flush co 5 minut, jak i przez wymuszony flush dokładnie o północy
-        (patrz midnight_reset) - w obu przypadkach _save_voice_time + _split_by_day
-        i tak poprawnie rozdzielą sekundy między dni kalendarzowe; różnica jest tylko
-        w tym, JAK CZĘSTO/KIEDY ten zapis faktycznie trafia do bazy."""
+        i resetuje ich punkt startowy na 'teraz'."""
         now = datetime.now(TIMEZONE)
         for key, joined_at in list(self._voice_join_times.items()):
             guild_id, user_id = key
             await self._save_voice_time(guild_id, user_id, joined_at, now)
             self._voice_join_times[key] = now
 
-    async def cog_unload(self) -> None:
-        """Zapisuje niedokończone sesje głosowe i zatrzymuje harmonogram przy wyłączeniu/przeładowaniu bota."""
-        self.daily_report.cancel()
-        self.weekly_report.cancel()
-        self.flush_voice_sessions.cancel()
-        self.midnight_reset.cancel()
-        now = datetime.now(TIMEZONE)
-        for (guild_id, user_id), joined_at in list(self._voice_join_times.items()):
-            await self._save_voice_time(guild_id, user_id, joined_at, now)
-        self._voice_join_times.clear()
-
-    async def cog_load(self) -> None:
-        await self.bot.db.execute(
-            """
-            CREATE TABLE IF NOT EXISTS member_names (
-                guild_id TEXT NOT NULL,
-                user_id TEXT NOT NULL,
-                display_name TEXT NOT NULL,
-                PRIMARY KEY (guild_id, user_id)
-            )
-            """
-        )
-        self.daily_report.start()
-        self.weekly_report.start()
-        self.flush_voice_sessions.start()
-        self.midnight_reset.start()
-
-    @commands.Cog.listener()
-    async def on_ready(self) -> None:
+    async def _recover_active_sessions(self) -> None:
         """
-        Odtwarza stan osób AKTUALNIE obecnych na kanałach głosowych po (re)połączeniu z Discordem.
-        Bez tego, sesje osób, które siedziały na kanale już przed startem/restartem bota,
-        nigdy nie zostałyby policzone — Discord nie wysyła ponownie zdarzenia 'dołączył
-        do kanału' dla osób już tam obecnych. To główna przyczyna niespójnego liczenia.
+        Odtwarza stan osób AKTUALNIE obecnych na kanałach głosowych po starcie bota.
         """
+        await self.bot.wait_until_ready()
         now = datetime.now(TIMEZONE)
         recovered = 0
         for guild in self.bot.guilds:
@@ -252,14 +216,52 @@ class ActivityCog(commands.Cog):
         if recovered:
             logger.info(f"Odtworzono {recovered} trwających sesji głosowych po (re)połączeniu.")
 
+    async def cog_unload(self) -> None:
+        """Zapisuje niedokończone sesje głosowe i zatrzymuje harmonogram przy wyłączeniu/przeładowaniu bota."""
+        self.daily_report.cancel()
+        self.weekly_report.cancel()
+        self.flush_voice_sessions.cancel()
+        self.midnight_reset.cancel()
+        now = datetime.now(TIMEZONE)
+        for (guild_id, user_id), joined_at in list(self._voice_join_times.items()):
+            await self._save_voice_time(guild_id, user_id, joined_at, now)
+        self._voice_join_times.clear()
+
+    async def cog_load(self) -> None:
+        # Tworzenie brakującej tabeli aktywności głosowej
+        await self.bot.db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS voice_activity (
+                guild_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                date TEXT NOT NULL,
+                seconds INTEGER NOT NULL,
+                PRIMARY KEY (guild_id, user_id, date)
+            )
+            """
+        )
+        await self.bot.db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS member_names (
+                guild_id TEXT NOT NULL,
+                user_id TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+            """
+        )
+        
+        # Uruchomienie odtwarzania sesji w tle
+        self.bot.loop.create_task(self._recover_active_sessions())
+
+        self.daily_report.start()
+        self.weekly_report.start()
+        self.flush_voice_sessions.start()
+        self.midnight_reset.start()
+
     @tasks.loop(minutes=5)
     async def flush_voice_sessions(self) -> None:
-        """
-        Co 5 minut zapisuje dotychczasowy czas trwających sesji głosowych do bazy
-        i resetuje punkt startowy na 'teraz'. Dzięki temu nagłe zamknięcie procesu
-        (crash, restart hosta bez Graceful Shutdown, awaria) traci maksymalnie
-        kilka minut danych zamiast całej trwającej sesji.
-        """
+        """Co 5 minut zapisuje dotychczasowy czas trwających sesji głosowych do bazy."""
         await self._flush_all_sessions()
 
     @flush_voice_sessions.before_loop
@@ -268,11 +270,7 @@ class ActivityCog(commands.Cog):
 
     @tasks.loop(time=MIDNIGHT_RESET_TIME)
     async def midnight_reset(self) -> None:
-        """
-        Wymusza NATYCHMIASTOWY zapis wszystkich trwających sesji głosowych dokładnie
-        o północy. Sam podział sekund między dni kalendarzowe działa już poprawnie
-        przy KAŻDYM zapisie (patrz _split_by_day).
-        """
+        """Wymusza natychmiastowy zapis wszystkich trwających sesji dokładnie o północy."""
         await self._flush_all_sessions()
 
     @midnight_reset.before_loop
@@ -281,7 +279,6 @@ class ActivityCog(commands.Cog):
 
     @tasks.loop(time=DAILY_REPORT_TIME)
     async def daily_report(self) -> None:
-        """Wysyła ranking czasu głosowego z bieżącego dnia na skonfigurowany kanał, dla każdego serwera."""
         for guild in self.bot.guilds:
             try:
                 row = await self.bot.db.fetchone(
@@ -307,10 +304,8 @@ class ActivityCog(commands.Cog):
 
     @tasks.loop(time=DAILY_REPORT_TIME)
     async def weekly_report(self) -> None:
-        """Co tydzień w środę o 23:59 wysyła podsumowanie tygodniowe dla zarządu organizacji."""
         now = datetime.now(TIMEZONE)
-        # 0=Poniedziałek, 1=Wtorek, 2=Środa, 3=Czwartek, 4=Piątek, 5=Sobota, 6=Niedziela
-        if now.weekday() != 2:
+        if now.weekday() != 2: # Środa
             return
 
         for guild in self.bot.guilds:
@@ -337,7 +332,6 @@ class ActivityCog(commands.Cog):
         await self.bot.wait_until_ready()
 
     async def build_stats_embed(self, guild: discord.Guild, scope: str) -> discord.Embed:
-        """Buduje embed rankingu TOP 10 dla wskazanego zakresu czasu."""
         label = SCOPE_TITLES[scope]
         days_back = SCOPE_DAYS_BACK[scope]
         guild_id = guild.id
@@ -357,7 +351,6 @@ class ActivityCog(commands.Cog):
 
         totals: dict[int, int] = {row["user_id"]: row["total_seconds"] or 0 for row in rows}
 
-        # Doliczenie aktualnie trwających (jeszcze niezapisanych w bazie) sesji głosowych
         now = datetime.now(TIMEZONE)
         for (g_id, user_id), joined_at in self._voice_join_times.items():
             if g_id != guild_id:
@@ -387,7 +380,6 @@ class ActivityCog(commands.Cog):
         return embed
 
     async def build_weekly_management_embed(self, guild: discord.Guild) -> discord.Embed:
-        """Buduje rozszerzony embed podsumowania tygodniowego dla Zarządu Organizacji."""
         now = datetime.now(TIMEZONE)
         start_date_obj = now.date() - timedelta(days=6)
         start_date_str = start_date_obj.isoformat()
@@ -400,7 +392,6 @@ class ActivityCog(commands.Cog):
         )
         totals: dict[int, int] = {row["user_id"]: row["total_seconds"] or 0 for row in rows}
 
-        # Doliczenie aktualnie trwających (jeszcze niezapisanych w bazie) sesji głosowych
         for (g_id, user_id), joined_at in self._voice_join_times.items():
             if g_id != guild_id:
                 continue
@@ -409,7 +400,6 @@ class ActivityCog(commands.Cog):
             if ongoing > 0:
                 totals[user_id] = totals.get(user_id, 0) + ongoing
 
-        # Odfiltrowanie zerowych czasów
         totals = {uid: sec for uid, sec in totals.items() if sec > 0}
 
         if not totals:
@@ -420,10 +410,6 @@ class ActivityCog(commands.Cog):
             )
             embed.set_footer(text=config.FOOTER_TEXT)
             return embed
-
-        total_org_seconds = sum(totals.values())
-        active_members_count = len(totals)
-        avg_seconds = total_org_seconds // active_members_count if active_members_count else 0
 
         top_members = sorted(totals.items(), key=lambda item: item[1], reverse=True)[:15]
         medals = {0: "🥇", 1: "🥈", 2: "🥉"}
@@ -470,7 +456,7 @@ class ActivityCog(commands.Cog):
             await interaction.response.send_message(
                 embed=error_embed(
                     "Brak Uprawnień",
-                    f"Bot nie ma uprawnień do wysyłania wiadomości lub dołączania embedów na kanale {kanal.mention}. Upewnij się, że bot ma uprawnienia `Wysyłanie wiadomości` oraz `Dołączanie linków` na tym kanale."
+                    f"Bot nie ma uprawnień do wysyłania wiadomości lub dołączania embedów na kanale {kanal.mention}."
                 ),
                 ephemeral=True
             )
@@ -486,8 +472,7 @@ class ActivityCog(commands.Cog):
         await interaction.response.send_message(
             embed=success_embed(
                 "Ustawiono Kanał Zarządu",
-                f"Kanał {kanal.mention} został pomyślnie ustawiony jako kanał raportów dla Zarządu.\n"
-                f"📊 Podsumowanie tygodniowej aktywności będzie pojawiać się tutaj **w każdą środę o godzinie 23:59**."
+                f"Kanał {kanal.mention} został pomyślnie ustawiony jako kanał raportów dla Zarządu."
             )
         )
 
