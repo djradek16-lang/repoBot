@@ -332,7 +332,7 @@ def build_review_embed(
     embed.add_field(name="🆔 UID w grze", value=f"**{uid}**", inline=True)
     embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
     embed.add_field(name="⏱️ RP", value=f"**{rp}**", inline=True)
-    embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k PLN)**", inline=True)
+    embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k $)**", inline=True)
     embed.add_field(name="🟢 Status na DC", value="**Obecny na serwerze**", inline=True)
 
     # Uzasadnienie kandydata (pełna szerokość)
@@ -394,7 +394,7 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
     )
     embed.add_field(
         name="🎮 Wymagania w Grze",
-        value="• Wpisowe: **3,000 PLN**\n• Brak aktywnych banów",
+        value="• Wpisowe: **3,000 $**\n• Brak aktywnych banów",
         inline=True
     )
 
