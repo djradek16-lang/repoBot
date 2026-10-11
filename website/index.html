@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="pl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Team77 • Cyber-Tactical Command Cockpit — Zintegrowany system zarządzania organizacją na platformie Discord & ProjectRPG.">
+    <title>Team77 • Cyber-Tactical Command Cockpit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Futuristic Ambient Background & Cyber Grid -->
+    <div class="cyber-grid-bg"></div>
+    <div class="ambient-flare flare-1"></div>
+    <div class="ambient-flare flare-2"></div>
+
+    <div class="app-shell">
+        <!-- ═══════════════════════════════════════════════════════════════
+             1. TACTICAL SIDEBAR COMMAND DOCK (LEFT)
+             ═══════════════════════════════════════════════════════════════ -->
+        <aside class="sidebar-dock" id="sidebar-dock">
+            <!-- Brand / Holographic Logo Header -->
+            <div class="dock-header">
+                <div class="dock-logo-wrap">
+                    <h1>77</h1>
+                    <div class="logo-hologram-ring"></div>
+                </div>
+                <div class="dock-brand-meta">
+                    <div class="dock-brand-name">
+                        TEAM77 <span class="brand-badge">HUD 3.0</span>
+                    </div>
+                    <div class="dock-brand-subtitle">CYBER COCKPIT</div>
+                </div>
+            </div>
+
+            <!-- Discord Telemetry / Realtime Pulse -->
+            <div class="dock-telemetry-box">
+                <div class="telemetry-indicator">
+                    <div class="pulse-led" id="dock-led"></div>
+                    <span id="dock-status-label">DISCORD SYNC</span>
+                </div>
+                <div class="telemetry-ping" id="dock-ping">-- ms</div>
+            </div>
+
+            <!-- Dock Navigation Items -->
+            <nav class="dock-nav-list">
+                <div class="dock-group-label">CENTRUM DOWODZENIA</div>
+                <button class="dock-nav-item active" data-tab="overview">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">📊</span>
+                        <span>Pulpit Operacyjny</span>
+                    </div>
+                </button>
+
+                <button class="dock-nav-item" data-tab="treasury">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">💰</span>
+                        <span>Skarbiec & Składki</span>
+                    </div>
+                    <span class="dock-counter" id="nav-badge-donations">0</span>
+                </button>
+
+                <button class="dock-nav-item" data-tab="recruitment">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">📝</span>
+                        <span>Pipeline Rekrutacji</span>
+                    </div>
+                    <span class="dock-counter" id="nav-badge-apps">0</span>
+                </button>
+
+                <div class="dock-group-label">KADRY & DYSCYPLINA</div>
+                <button class="dock-nav-item" data-tab="lookup">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">🔍</span>
+                        <span>Skaner ProjectRPG</span>
+                    </div>
+                </button>
+
+                <button class="dock-nav-item" data-tab="discipline">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">⚖️</span>
+                        <span>Trybunał & Kary</span>
+                    </div>
+                </button>
+
+                <div class="dock-group-label">BROADCAST & METRYKI</div>
+                <button class="dock-nav-item" data-tab="announcements">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">📢</span>
+                        <span>Broadcast Studio 2.0</span>
+                    </div>
+                </button>
+
+                <button class="dock-nav-item" data-tab="leaderboards">
+                    <div class="dock-nav-item-left">
+                        <span class="dock-nav-icon">🏆</span>
+                        <span>Rankingi & Statystyki</span>
+                    </div>
+                </button>
+            </nav>
+
+            <!-- Security Clearance & Auth Dock Footer -->
+            <div class="dock-footer">
+                <div class="security-clearance-card" id="clearance-card">
+                    <div class="clearance-meta">
+                        <div class="clearance-label">SECURITY CLEARANCE</div>
+                        <div class="clearance-status" id="clearance-level-text">
+                            🔒 Gość (Podgląd)
+                        </div>
+                    </div>
+                    <button class="btn-auth-lock" id="btn-auth-modal" title="Zaloguj / Wyloguj Zarząd">
+                        🔑
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             2. MAIN COCKPIT VIEWPORT (RIGHT)
+             ═══════════════════════════════════════════════════════════════ -->
+        <div class="cockpit-main">
+            <!-- Sticky Master Telemetry Bar with Built-in Radio Deck -->
+            <header class="master-header-bar">
+                <!-- Master Radio Project FM Streaming Deck -->
+                <div class="header-radio-deck">
+                    <button class="btn-deck-play" id="btn-deck-play" title="Włącz / Zatrzymaj Radio ProjectFM">
+                        ▶
+                    </button>
+
+                    <div class="deck-info">
+                        <div class="deck-title-line">
+                            <span class="deck-live-tag">ON AIR</span>
+                            <span class="deck-show-name" id="deck-show-title">Project FM • Łączenie...</span>
+                        </div>
+                        <div class="deck-sub-line">
+                            Prezenter: <strong id="deck-presenter-name">System Auto-DJ</strong>
+                        </div>
+                    </div>
+
+                    <!-- Equalizer Sound Wave Animation -->
+                    <div class="deck-equalizer" id="deck-equalizer">
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                        <div class="eq-bar"></div>
+                    </div>
+
+                    <!-- Compact Volume Slider -->
+                    <input type="range" class="deck-vol-slider" id="deck-vol-slider" min="0" max="1" step="0.05"
+                        value="0.8" title="Głośność Radia">
+                </div>
+
+                <!-- Right Telemetry Chips -->
+                <div class="header-right-meta">
+                    <div class="telemetry-chip">
+                        <span>MTA:</span>
+                        <span class="chip-accent" id="hdr-mta-status">ONLINE (--/--)</span>
+                    </div>
+
+                    <div class="telemetry-chip">
+                        <span>UPTIME:</span>
+                        <span class="chip-accent" id="hdr-uptime">--</span>
+                    </div>
+
+                    <button class="btn-cyber-secondary" id="btn-quick-refresh"
+                        style="padding: 6px 12px; font-size: 0.8rem;">
+                        🔄 Odśwież
+                    </button>
+
+                    <span class="badge-status badge-online" id="bot-status-badge">● Bot Online</span>
+                </div>
+            </header>
+
+            <!-- Cockpit Arena / Active Tab Viewport -->
+            <div class="cockpit-arena">
+                <!-- Offline Alert Banner -->
+                <div id="offline-alert"
+                    style="display: none; background: rgba(255, 0, 85, 0.15); border: 1px solid var(--crimson); color: #ff6699; padding: 14px 20px; border-radius: var(--radius-sm); margin-bottom: 24px; font-weight: 700; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                    ⚠️ <strong>Brak aktywnego połączenia z serwerem bota.</strong> Funkcje Discorda mogą być niedostępne
+                    do momentu uruchomienia bota.
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 1: OVERVIEW (PULPIT OPERACYJNY)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane active" id="pane-overview">
+                    <!-- Top Metric Tiles Row -->
+                    <div class="metric-row-grid">
+                        <div class="metric-tile">
+                            <div class="metric-tile-top">
+                                <span class="metric-tag tag-cyan">Skarbiec Org</span>
+                                <span style="font-size: 1.2rem;">💰</span>
+                            </div>
+                            <div class="metric-big-num" id="stat-treasury">0 PLN</div>
+                            <div class="metric-subtext" id="stat-pending-donations">Oczekujące wpłaty: 0</div>
+                        </div>
+
+                        <div class="metric-tile">
+                            <div class="metric-tile-top">
+                                <span class="metric-tag tag-amber">Radar Składek</span>
+                                <span style="font-size: 1.2rem;">⚠️</span>
+                            </div>
+                            <div class="metric-big-num" id="stat-unpaid-fees-num">0</div>
+                            <div class="metric-subtext">Nieopłacone w tym miesiącu</div>
+                        </div>
+
+                        <div class="metric-tile">
+                            <div class="metric-tile-top">
+                                <span class="metric-tag tag-green">Pipeline Rekrutacji</span>
+                                <span style="font-size: 1.2rem;">📝</span>
+                            </div>
+                            <div class="metric-big-num" id="stat-pending-apps-num">0</div>
+                            <div class="metric-subtext">Nowe zgłoszenia kandydatów</div>
+                        </div>
+
+                        <div class="metric-tile">
+                            <div class="metric-tile-top">
+                                <span class="metric-tag tag-purple">Baza Członków</span>
+                                <span style="font-size: 1.2rem;">👥</span>
+                            </div>
+                            <div class="metric-big-num" id="stat-members">0</div>
+                            <div class="metric-subtext" id="stat-members-detail">Aktywni na VC: 0 • Online: 0</div>
+                        </div>
+                    </div>
+
+                    <!-- Bento Grid Content -->
+                    <div class="bento-grid">
+                        <!-- Left Bento: Quick Response Protocols (col-8) -->
+                        <div class="bento-card col-8">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">⚡</div>
+                                    <div>
+                                        <div class="bento-card-title">Protokoły Szybkiego Zarządzania</div>
+                                        <div class="bento-card-desc">Bezpośrednie operacje połączone z Discordem</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; flex-direction: column; gap: 12px;">
+                                <div class="protocol-action-card" onclick="switchTab('treasury', 'donations')">
+                                    <div class="protocol-left">
+                                        <div class="protocol-icon"
+                                            style="color: var(--cyan); background: rgba(0, 240, 255, 0.1);">💰</div>
+                                        <div>
+                                            <div class="protocol-title">Weryfikacja Wpłat do Skarbca</div>
+                                            <div class="protocol-desc">Zatwierdzaj lub odrzucaj wpłaty z dowodami z
+                                                natychmiastowym embedem Discorda</div>
+                                        </div>
+                                    </div>
+                                    <span class="protocol-badge" id="quick-badge-donations">0 Oczekujących</span>
+                                </div>
+
+                                <div class="protocol-action-card" onclick="switchTab('treasury', 'fee')">
+                                    <div class="protocol-left">
+                                        <div class="protocol-icon"
+                                            style="color: var(--amber); background: rgba(255, 183, 3, 0.1);">📊</div>
+                                        <div>
+                                            <div class="protocol-title">Radar Składek Członkowskich</div>
+                                            <div class="protocol-desc">Sprawdzaj zaległości, oznaczaj opłaty lub pinguj
+                                                zalegających na Discordzie</div>
+                                        </div>
+                                    </div>
+                                    <span class="protocol-badge alert" id="quick-badge-fee">0 Do opłacenia</span>
+                                </div>
+
+                                <div class="protocol-action-card" onclick="switchTab('recruitment')">
+                                    <div class="protocol-left">
+                                        <div class="protocol-icon"
+                                            style="color: var(--neon-green); background: rgba(0, 255, 157, 0.1);">📝
+                                        </div>
+                                        <div>
+                                            <div class="protocol-title">Pipeline Podań Rekrutacyjnych</div>
+                                            <div class="protocol-desc">Akceptacja kandydata nadaje rolę na serwerze i
+                                                wysyła automatyczny Discord DM</div>
+                                        </div>
+                                    </div>
+                                    <span class="protocol-badge" id="quick-badge-apps">0 Nowych podań</span>
+                                </div>
+
+                                <div class="protocol-action-card" onclick="switchTab('announcements')">
+                                    <div class="protocol-left">
+                                        <div class="protocol-icon"
+                                            style="color: var(--purple); background: rgba(139, 92, 246, 0.1);">📢</div>
+                                        <div>
+                                            <div class="protocol-title">Broadcast Studio 2.0</div>
+                                            <div class="protocol-desc">Twórz bogate ogłoszenia embed z podglądem na żywo
+                                                i publikuj na wybranym kanale</div>
+                                        </div>
+                                    </div>
+                                    <span class="protocol-badge">Wyślij Ogłoszenie →</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Bento: Live Radio & MTA Telemetry (col-4) -->
+                        <div class="bento-card col-4">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">📻</div>
+                                    <div>
+                                        <div class="bento-card-title">Radio Project FM</div>
+                                        <div class="bento-card-desc">Oficjalna stacja serwera</div>
+                                    </div>
+                                </div>
+                                <span class="pill-status pill-approved" id="radio-bot-live-pill">Discord:
+                                    Łączenie</span>
+                            </div>
+
+                            <div
+                                style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 16px; margin-bottom: 16px;">
+                                <div
+                                    style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase;">
+                                    AKTUALNA AUDYCJA</div>
+                                <div style="font-size: 1.05rem; font-weight: 800; color: #fff; margin: 4px 0;"
+                                    id="radio-cur-title">ProjectFM Pasmo Muzyczne</div>
+                                <div style="font-size: 0.85rem; color: var(--cyan); font-weight: 600;"
+                                    id="radio-cur-host">Prezenter: System Auto-DJ</div>
+                                <div style="font-size: 0.76rem; color: var(--text-dim); margin-top: 4px;"
+                                    id="radio-cur-time">⏱️ Pasmo 24/7</div>
+                            </div>
+
+                            <div
+                                style="background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 16px;">
+                                <div
+                                    style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-muted); text-transform: uppercase;">
+                                    NASTĘPNA W RAMÓWCE</div>
+                                <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-main); margin-top: 4px;"
+                                    id="radio-next-title">Brak kolejnej audycji</div>
+                                <div style="font-size: 0.74rem; color: var(--text-dim);" id="radio-next-time">--:--
+                                </div>
+                            </div>
+
+                            <div id="radio-discord-voice-info"
+                                style="font-size: 0.82rem; color: var(--text-dim); border-top: 1px solid var(--border-subtle); padding-top: 12px;">
+                                🔊 Transmisja bota na Discordzie: <em>Sprawdzanie...</em>
+                            </div>
+                        </div>
+
+                        <!-- Full Width Bento: MTA Server Live Telemetry (col-12) -->
+                        <div class="bento-card col-12">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">🎮</div>
+                                    <div>
+                                        <div class="bento-card-title">Serwer ProjectRPG MTA:SA</div>
+                                        <div class="bento-card-desc">Oficjalny serwer gry • IP: mta.projectrpg.pl:22003
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span class="pill-status pill-approved" id="mta-online-badge">● Online</span>
+                                    <button class="btn-cyber-secondary" onclick="copyMTAIP()">
+                                        <span id="copy-ip-icon">📋</span> <span id="copy-ip-label">Kopiuj IP</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div
+                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="font-size: 0.85rem; color: var(--text-dim);">Obłożenie serwera:</span>
+                                <span style="font-family: var(--font-mono); font-weight: 800; color: var(--cyan);"
+                                    id="stat-mta-players">0 / 500</span>
+                            </div>
+                            <div
+                                style="height: 10px; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius-pill); overflow: hidden; margin-bottom: 12px;">
+                                <div id="mta-progress-fill"
+                                    style="height: 100%; width: 50%; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width 0.6s ease;">
+                                </div>
+                            </div>
+                            <div
+                                style="display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); font-family: var(--font-mono);">
+                                <span id="stat-mta-ping">Ping: -- ms</span>
+                                <span id="stat-uptime">Uptime bota: --</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 2: TREASURY (SKARBIEC & SKŁADKI)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-treasury">
+                    <div class="bento-card col-12" style="margin-bottom: 20px;">
+                        <div
+                            style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn-cyber-primary" id="btn-treasury-donations-tab"
+                                    onclick="switchTreasurySubTab('donations')">
+                                    💰 Weryfikacja Wpłat
+                                </button>
+                                <button class="btn-cyber-secondary" id="btn-treasury-fee-tab"
+                                    onclick="switchTreasurySubTab('fee')">
+                                    ⚠️ Radar Składek Członkowskich
+                                </button>
+                            </div>
+
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <button class="btn-cyber-secondary" onclick="loadDonations(); loadFeeCheck();">
+                                    🔄 Odśwież Dane
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subview 1: Donations -->
+                    <div id="subview-donations">
+                        <div class="bento-card col-12">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">💵</div>
+                                    <div>
+                                        <div class="bento-card-title">Księga Transakcji Skarbca</div>
+                                        <div class="bento-card-desc">Zatwierdzenie wpłaty natychmiast wysyła ogłoszenie
+                                            na Discordzie oraz aktualizuje przypinkę</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="table-matrix-wrap">
+                                <table class="cyber-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Darczyńca</th>
+                                            <th>Kwota</th>
+                                            <th>Typ</th>
+                                            <th>Data</th>
+                                            <th>Dowód</th>
+                                            <th>Status</th>
+                                            <th>Decyzja Discord</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="donations-table-body">
+                                        <tr>
+                                            <td colspan="8"
+                                                style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                                Ładowanie bazy wpłat...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subview 2: Fee Check Radar -->
+                    <div id="subview-fee" style="display: none;">
+                        <div class="bento-card col-12">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">📅</div>
+                                    <div>
+                                        <div class="bento-card-title">Status Składek Organizacyjnych</div>
+                                        <div class="bento-card-desc">Ewidencja miesięcznych składek członków Team77 z
+                                            integracją powiadomień Discord</div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 10px;">
+                                    <button class="btn-cyber-secondary" id="btn-fee-filter-unpaid"
+                                        onclick="toggleFeeFilter()">
+                                        Pokaż tylko zalegających
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="table-matrix-wrap">
+                                <table class="cyber-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Użytkownik Discord</th>
+                                            <th>PID / Nick w grze</th>
+                                            <th>Status Składki</th>
+                                            <th>Wpłacono</th>
+                                            <th>Data Ostatniej Wpłaty</th>
+                                            <th>Akcje Dyscyplinarne</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="fee-check-table-body">
+                                        <tr>
+                                            <td colspan="6"
+                                                style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                                Ładowanie rejestru składek...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 3: RECRUITMENT PIPELINE
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-recruitment">
+                    <div class="bento-card col-12">
+                        <div class="bento-card-header">
+                            <div class="bento-title-group">
+                                <div class="bento-icon-badge">📋</div>
+                                <div>
+                                    <div class="bento-card-title">Pipeline Podań Rekrutacyjnych</div>
+                                    <div class="bento-card-desc">Akceptacja automatycznie nadaje rangę członka na
+                                        serwerze Discord i wysyła zaproszenie w DM</div>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                                <input type="text" id="app-search-input" placeholder="🔍 Szukaj kandydata, PID..."
+                                    style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); color: #fff; border-radius: 6px; padding: 6px 12px; font-size: 0.8rem; outline: none; width: 180px;"
+                                    oninput="filterApplicationsSearch(this.value)">
+                                <button class="btn-cyber-secondary active" id="filter-app-all"
+                                    onclick="filterApplications('all')">Wszystkie <span id="badge-count-all" style="opacity: 0.7; font-size: 0.75rem;"></span></button>
+                                <button class="btn-cyber-secondary" id="filter-app-pending"
+                                    onclick="filterApplications('pending')">Oczekujące <span id="badge-count-pending" style="color: var(--amber); font-weight: bold; font-size: 0.75rem;"></span></button>
+                                <button class="btn-cyber-secondary" id="filter-app-approved"
+                                    onclick="filterApplications('approved')">Zaakceptowane <span id="badge-count-approved" style="color: var(--neon-green); font-size: 0.75rem;"></span></button>
+                                <button class="btn-cyber-secondary" id="filter-app-rejected"
+                                    onclick="filterApplications('rejected')">Odrzucone <span id="badge-count-rejected" style="color: var(--crimson); font-size: 0.75rem;"></span></button>
+                            </div>
+                        </div>
+
+                        <div class="table-matrix-wrap">
+                            <table class="cyber-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Kandydat (Discord)</th>
+                                        <th>PID</th>
+                                        <th>Wiek</th>
+                                        <th>Godziny na serwerze</th>
+                                        <th>Status</th>
+                                        <th>Złożono</th>
+                                        <th style="text-align: right;">Szczegóły & Decyzja</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="applications-table-body">
+                                    <tr>
+                                        <td colspan="8"
+                                            style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                            Ładowanie podań rekrutacyjnych...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 4: LOOKUP (SKANER PROJECTRPG)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-lookup">
+                    <div class="bento-card col-12">
+                        <div class="bento-card-header">
+                            <div class="bento-title-group">
+                                <div class="bento-icon-badge">🔍</div>
+                                <div>
+                                    <div class="bento-card-title">Skaner Danych Gracza ProjectRPG</div>
+                                    <div class="bento-card-desc">Weryfikuj kandydatów i członków bezpośrednio przez bazę
+                                        forum i serwera MTA</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 14px; margin-bottom: 24px;">
+                            <input type="text" class="cyber-input" id="lookup-query-input"
+                                placeholder="Wpisz Nick, PID lub Serial gracza..."
+                                style="max-width: 500px; font-size: 1.05rem;">
+                            <button class="btn-cyber-primary" id="btn-run-lookup" onclick="runPlayerLookup()">
+                                ⚡ Przeszukaj Bazy
+                            </button>
+                        </div>
+
+                        <!-- Scanner Result HUD -->
+                        <div class="scanner-card" id="scanner-result">
+                            <div class="scanner-header">
+                                <img src="logo.png" class="scanner-avatar" id="scanner-avatar" alt="Avatar">
+                                <div>
+                                    <div style="font-size: 1.5rem; font-weight: 900; color: #fff;" id="scanner-nick">
+                                        Gracz
+                                    </div>
+                                    <div style="font-size: 0.85rem; font-family: var(--font-mono); color: var(--cyan);"
+                                        id="scanner-pid">
+                                        PID: -----
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="scanner-grid">
+                                <div class="scanner-tile">
+                                    <div class="scanner-tile-label">ORGANIZACJA</div>
+                                    <div class="scanner-tile-val" id="scanner-org">Brak / Team77</div>
+                                </div>
+                                <div class="scanner-tile">
+                                    <div class="scanner-tile-label">CZAS GRY</div>
+                                    <div class="scanner-tile-val" id="scanner-hours">0 godz.</div>
+                                </div>
+                                <div class="scanner-tile">
+                                    <div class="scanner-tile-label">PUNKTY PREMIUM</div>
+                                    <div class="scanner-tile-val" id="scanner-pp">0 PP</div>
+                                </div>
+                                <div class="scanner-tile">
+                                    <div class="scanner-tile-label">PRAWO JAZDY</div>
+                                    <div class="scanner-tile-val" id="scanner-licenses">A, B, C</div>
+                                </div>
+                                <div class="scanner-tile">
+                                    <div class="scanner-tile-label">AKTYWNE KARY SERWEROWE</div>
+                                    <div class="scanner-tile-val" id="scanner-penalties"
+                                        style="color: var(--neon-green);">0 kar</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 5: DISCIPLINE (TRYBUNAŁ & KARY)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-discipline">
+                    <div class="bento-grid">
+                        <!-- Left Bento: Issue Strike Form (col-5) -->
+                        <div class="bento-card col-5">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">⚖️</div>
+                                    <div>
+                                        <div class="bento-card-title">Wystaw Sankcję / Minus</div>
+                                        <div class="bento-card-desc">Sankcja zapisuje się w bazie i publikuje
+                                            powiadomienie Discord</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="cyber-input-wrap">
+                                <label class="cyber-label">CZŁONEK ORGANIZACJI</label>
+                                <select class="cyber-input" id="strike-member-select">
+                                    <option value="">Wybierz członka z serwera...</option>
+                                </select>
+                            </div>
+
+                            <div class="cyber-input-wrap">
+                                <label class="cyber-label">RODZAJ SANKCJI</label>
+                                <select class="cyber-input" id="strike-type-select">
+                                    <option value="warn">⚠️ Ostrzeżenie Słowne</option>
+                                    <option value="minus">➖ Minus Dyscyplinarny (-1)</option>
+                                    <option value="strike">❌ Nagana Organizacyjna</option>
+                                    <option value="suspension">⛔ Zawieszenie w Prawach Członka</option>
+                                </select>
+                            </div>
+
+                            <div class="cyber-input-wrap">
+                                <label class="cyber-label">POWÓD SANKCJI</label>
+                                <textarea class="cyber-input" id="strike-reason-input"
+                                    placeholder="Podaj dokładny powód nałożenia kary..."></textarea>
+                            </div>
+
+                            <button class="btn-cyber-primary" style="width: 100%; margin-top: 10px;"
+                                onclick="submitStrike()">
+                                ⚖️ Zatwierdź Sankcję & Loguj na Discordzie
+                            </button>
+                        </div>
+
+                        <!-- Right Bento: Active Strikes Matrix (col-7) -->
+                        <div class="bento-card col-7">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">📜</div>
+                                    <div>
+                                        <div class="bento-card-title">Kartoteka Aktywnych Kar</div>
+                                        <div class="bento-card-desc">Rejestr dyscyplinarny członków Team77</div>
+                                    </div>
+                                </div>
+                                <button class="btn-cyber-secondary" onclick="loadStrikes()">🔄</button>
+                            </div>
+
+                            <div class="table-matrix-wrap">
+                                <table class="cyber-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Ukarany</th>
+                                            <th>Sankcja</th>
+                                            <th>Powód</th>
+                                            <th>Wystawił</th>
+                                            <th>Data</th>
+                                            <th>Akcja</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="strikes-table-body">
+                                        <tr>
+                                            <td colspan="6"
+                                                style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                                Ładowanie kartoteki...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 6: ANNOUNCEMENTS (BROADCAST STUDIO 2.0)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-announcements">
+                    <div class="broadcast-studio-grid">
+                        <!-- Left Column: Studio Composer -->
+                        <div>
+                            <div class="bento-card" style="margin-bottom: 20px;">
+                                <div class="bento-card-header">
+                                    <div class="bento-title-group">
+                                        <div class="bento-icon-badge">🎙️</div>
+                                        <div>
+                                            <div class="bento-card-title">Broadcast Studio 2.0</div>
+                                            <div class="bento-card-desc">Generator profesjonalnych ogłoszeń Discord
+                                                Embed</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="cyber-input-wrap">
+                                    <label class="cyber-label">KANAŁ DOCELOWY NA DISCORDZIE</label>
+                                    <select class="cyber-input" id="announcement-channel-select">
+                                        <option value="">Wybierz kanał ogłoszeń...</option>
+                                    </select>
+                                </div>
+
+                                <div class="cyber-input-wrap">
+                                    <label class="cyber-label">WZMIANKA (MENTION)</label>
+                                    <select class="cyber-input" id="announcement-mention-select">
+                                        <option value="none">Brak wzmianki</option>
+                                        <option value="everyone">@everyone (Wszyscy)</option>
+                                        <option value="here">@here (Obecni online)</option>
+                                    </select>
+                                </div>
+
+                                <div class="cyber-input-wrap">
+                                    <label class="cyber-label">TYTUŁ OGŁOSZENIA</label>
+                                    <input type="text" class="cyber-input" id="announcement-title-input"
+                                        placeholder="np. ZEBRANIE ORGANIZACYJNE TEAM77"
+                                        value="📢 WAŻNE OGŁOSZENIE ORGANIZACYJNE">
+                                </div>
+
+                                <div class="cyber-input-wrap">
+                                    <label class="cyber-label">TREŚĆ WIADOMOŚCI (MARKDOWN)</label>
+                                    <textarea class="cyber-input" id="announcement-desc-input" rows="6"
+                                        placeholder="Wpisz treść komunikatu...">Drodzy Członkowie! W najbliższą niedzielę odbędzie się obowiązkowe zebranie zarządu oraz członków organizacji Team77 na serwerze Discord.
+
+Prosimy o punktualne przybycie na kanał głosowy.</textarea>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                                    <div class="cyber-input-wrap">
+                                        <label class="cyber-label">KOLOR PASKA (HEX)</label>
+                                        <input type="color" class="cyber-input" id="announcement-color-input"
+                                            value="#00f0ff" style="height: 46px; padding: 4px; cursor: pointer;">
+                                    </div>
+
+                                    <div class="cyber-input-wrap">
+                                        <label class="cyber-label">OBRAZEK / BANER (URL)</label>
+                                        <input type="text" class="cyber-input" id="announcement-image-input"
+                                            placeholder="https://... baner.png">
+                                    </div>
+                                </div>
+
+                                <button class="btn-cyber-primary"
+                                    style="width: 100%; padding: 14px; font-size: 1rem; margin-top: 10px;"
+                                    onclick="sendAnnouncement()">
+                                    🚀 Wyślij Ogłoszenie na Serwer Discord
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: 1:1 Live Discord Embed Preview -->
+                        <div>
+                            <div class="bento-card">
+                                <div class="bento-card-header">
+                                    <div class="bento-title-group">
+                                        <div class="bento-icon-badge">👁️</div>
+                                        <div>
+                                            <div class="bento-card-title">Live Discord Preview</div>
+                                            <div class="bento-card-desc">1:1 Odzwierciedlenie widoku na czacie Discorda
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="discord-mock-preview">
+                                    <div class="discord-chat-head">
+                                        <span>#</span>
+                                        <span id="preview-channel-name">ogloszenia</span>
+                                    </div>
+
+                                    <div class="discord-chat-body">
+                                        <img src="logo.png" class="discord-bot-avatar" alt="AegisBot"
+                                            onerror="this.src='zdj.png'">
+                                        <div style="flex: 1; min-width: 0;">
+                                            <div
+                                                style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                                                <span
+                                                    style="font-weight: 700; color: #fff; font-size: 0.95rem;">AegisBot</span>
+                                                <span class="discord-bot-badge">BOT</span>
+                                                <span style="font-size: 0.72rem; color: #949ba4;">Dzisiaj o 15:00</span>
+                                            </div>
+
+                                            <div id="preview-mention-text"
+                                                style="color: #c9cdfb; font-size: 0.88rem; margin-bottom: 8px; display: none;">
+                                                @everyone
+                                            </div>
+
+                                            <!-- Embed -->
+                                            <div class="discord-embed-wrapper" id="preview-embed-box">
+                                                <div class="discord-embed-title-text" id="preview-embed-title">
+                                                    📢 WAŻNE OGŁOSZENIE ORGANIZACYJNE
+                                                </div>
+                                                <div class="discord-embed-desc-text" id="preview-embed-desc">
+                                                    Podgląd treści ogłoszenia pojawi się tutaj na żywo podczas
+                                                    pisania...
+                                                </div>
+                                                <div id="preview-embed-image-box"
+                                                    style="margin-top: 10px; display: none;">
+                                                    <img id="preview-embed-image" src=""
+                                                        style="max-width: 100%; border-radius: 4px;" alt="Baner">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════
+                     PANE 7: LEADERBOARDS (RANKINGI & FINANSE)
+                     ═══════════════════════════════════════════════════════ -->
+                <div class="tab-pane" id="pane-leaderboards">
+                    <div class="bento-grid">
+                        <div class="bento-card col-6">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">👑</div>
+                                    <div>
+                                        <div class="bento-card-title">Top Donatorzy Skarbca</div>
+                                        <div class="bento-card-desc">Największe łączne wsparcie finansowe Team77</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-matrix-wrap">
+                                <table class="cyber-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Miejsce</th>
+                                            <th>Gracz / Nick</th>
+                                            <th>Łączna Kwota</th>
+                                            <th>Liczba Wpłat</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-donors-table-body">
+                                        <tr>
+                                            <td colspan="4"
+                                                style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                                Ładowanie rankingu darczyńców...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="bento-card col-6">
+                            <div class="bento-card-header">
+                                <div class="bento-title-group">
+                                    <div class="bento-icon-badge">🎙️</div>
+                                    <div>
+                                        <div class="bento-card-title">Top Aktywność Głosowa (VC)</div>
+                                        <div class="bento-card-desc">Najaktywniejsi członkowie na kanałach organizacji
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-matrix-wrap">
+                                <table class="cyber-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Miejsce</th>
+                                            <th>Członek</th>
+                                            <th>Czas na VC</th>
+                                            <th>Ranga</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-vc-table-body">
+                                        <tr>
+                                            <td colspan="4"
+                                                style="text-align: center; color: var(--text-dim); padding: 30px;">
+                                                Ładowanie statystyk aktywności...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         MODALS & OVERLAYS
+         ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Auth Modal -->
+    <div class="cyber-modal-overlay" id="auth-modal">
+        <div class="cyber-modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="font-size: 1.2rem; font-weight: 900; color: #fff;">
+                    🔑 Autoryzacja Zarządu Team77
+                </div>
+                <button onclick="closeModal('auth-modal')"
+                    style="background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer;">✕</button>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px;">
+                Wprowadź hasło administracyjne zdefiniowane w konfiguracji bota Discord, aby odblokować możliwość
+                podejmowania decyzji o wpłatach, rekrutacji i karach.
+            </p>
+            <div class="cyber-input-wrap">
+                <label class="cyber-label">HASŁO ADMINISTRACYJNE</label>
+                <input type="password" class="cyber-input" id="modal-password" placeholder="••••••••••••">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn-cyber-secondary" onclick="closeModal('auth-modal')">Anuluj</button>
+                <button class="btn-cyber-primary" id="btn-login-submit">Odblokuj Panel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proof Viewer Modal -->
+    <div class="cyber-modal-overlay" id="proof-modal">
+        <div class="cyber-modal-card" style="max-width: 700px; text-align: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="font-size: 1.1rem; font-weight: 800; color: #fff;">🖼️ Dowód Wpłaty</div>
+                <button onclick="closeModal('proof-modal')"
+                    style="background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer;">✕</button>
+            </div>
+            <img id="proof-modal-img" src=""
+                style="max-width: 100%; max-height: 70vh; border-radius: 8px; border: 1px solid var(--border-medium);"
+                alt="Dowód">
+        </div>
+    </div>
+
+    <!-- Application Details Modal -->
+    <div class="cyber-modal-overlay" id="app-modal">
+        <div class="cyber-modal-card" style="max-width: 650px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="font-size: 1.15rem; font-weight: 800; color: #fff;" id="app-modal-title">
+                    📋 Podanie Rekrutacyjne #0
+                </div>
+                <button onclick="closeModal('app-modal')"
+                    style="background: none; border: none; color: var(--text-dim); font-size: 1.4rem; cursor: pointer;">✕</button>
+            </div>
+            <div id="app-modal-content"
+                style="max-height: 60vh; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; color: var(--text-main);">
+                Ładowanie...
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px;" id="app-modal-actions">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio Element for Live Radio -->
+    <audio id="radio-audio-element" preload="none"></audio>
+
+    <!-- Toast Notifications Hub -->
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

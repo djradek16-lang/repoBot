@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Wizualizacja Nowych Embedów — System Wpłat Team77</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "gg sans", "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+    body {
+      background-color: #313338;
+      color: #dbdee1;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 30px;
+    }
+    .page-header {
+      text-align: center;
+      max-width: 800px;
+    }
+    .page-header h1 {
+      color: #f2f3f5;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+    .page-header p {
+      color: #949ba4;
+      font-size: 14px;
+    }
+    .container {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .section-title {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #949ba4;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title span.badge {
+      background-color: #2b2d31;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #5865f2;
+    }
+    .discord-message {
+      display: flex;
+      gap: 16px;
+      padding: 4px 0;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #111, #333);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 13px;
+      color: #fff;
+      flex-shrink: 0;
+      border: 2px solid #5865f2;
+    }
+    .message-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .author-line {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 15px;
+    }
+    .author-name {
+      font-weight: 600;
+      color: #f2f3f5;
+    }
+    .bot-tag {
+      background: #5865f2;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 4px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .timestamp {
+      font-size: 12px;
+      color: #949ba4;
+    }
+
+    /* Discord Embed */
+    .discord-embed {
+      background-color: #2b2d31;
+      border-left: 4px solid #f1c40f;
+      border-radius: 4px;
+      padding: 14px 16px;
+      max-width: 520px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .discord-embed.green {
+      border-left-color: #2ecc71;
+    }
+    .discord-embed.gold {
+      border-left-color: #f1c40f;
+    }
+    .embed-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #f2f3f5;
+    }
+    .embed-desc {
+      font-size: 14px;
+      line-height: 1.45;
+      color: #dbdee1;
+    }
+    .embed-desc h3 {
+      font-size: 18px;
+      color: #f2f3f5;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .blockquote {
+      border-left: 4px solid #4e5058;
+      padding-left: 10px;
+      margin: 8px 0;
+      color: #dbdee1;
+      font-size: 13.5px;
+      line-height: 1.5;
+    }
+    .subtext {
+      font-size: 12px;
+      color: #949ba4;
+      margin-top: 6px;
+    }
+    .code-inline {
+      background-color: #1e1f22;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: Consolas, monospace;
+      font-size: 12.5px;
+      color: #e0e1e5;
+    }
+    .mention {
+      background-color: #3c4270;
+      color: #c9cdfb;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .status-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      font-weight: 600;
+      background: #1e1f22;
+    }
+    .status-badge.pending {
+      color: #f1c40f;
+    }
+    .status-badge.approved {
+      color: #2ecc71;
+    }
+
+    .embed-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .field-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f2f3f5;
+      margin-bottom: 2px;
+    }
+    .field-value {
+      font-size: 13px;
+      color: #dbdee1;
+      line-height: 1.35;
+    }
+    .embed-image {
+      width: 100%;
+      height: 220px;
+      background-color: #1e1f22;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .embed-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .embed-footer {
+      font-size: 12px;
+      color: #949ba4;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    /* Buttons */
+    .discord-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.2s;
+    }
+    .btn-green {
+      background-color: #248046;
+      color: white;
+    }
+    .btn-red {
+      background-color: #da373c;
+      color: white;
+    }
+    .btn-blue {
+      background-color: #5865f2;
+      color: white;
+    }
+    .btn-gray {
+      background-color: #4e5058;
+      color: white;
+    }
+    .btn-disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 600px) {
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .comparison-card {
+      background: #232428;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #383a40;
+    }
+    .comparison-card.after {
+      border-color: #2ecc71;
+    }
+    .comparison-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-bottom: 8px;
+      display: inline-block;
+    }
+    .badge-before {
+      background: #da373c;
+      color: #fff;
+    }
+    .badge-after {
+      background: #248046;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-header">
+    <h1>Wizualizacja Nowego Wyglądu Systemu Wpłat • Team77</h1>
+    <p>Porównanie zmian wizualnych, nowoczesna typografia, naprawa błędu powielania statusu i interaktywne przyciski.</p>
+  </div>
+
+  <div class="container">
+
+    <!-- 1. PANEL ZARZĄDU / WERYFIKACJA -->
+    <div>
+      <div class="section-title">
+        1. Panel Weryfikacji (Kanał Zarządu)
+        <span class="badge">#weryfikacja-wplat</span>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- PRZED -->
+        <div class="comparison-card">
+          <span class="comparison-badge badge-before">STARY WYGLĄD (Z BŁĘDEM)</span>
+          <div class="discord-embed gold" style="border-left-color: #f1c40f;">
+            <div class="embed-title">💰 Nowe Zgłoszenie Wpłaty</div>
+            <div class="embed-desc"><b>Wpłacający:</b> <span class="mention">@MrSlavic</span></div>
+            <div class="embed-fields">
+              <div><div class="field-name">Kwota</div><div class="field-value"><b>8 000$</b></div></div>
+              <div><div class="field-name">Typ</div><div class="field-value">Dobrowolna</div></div>
+              <div><div class="field-name">Nick</div><div class="field-value">MrSlavic</div></div>
+              <div><div class="field-name">Login</div><div class="field-value">MrSlavic</div></div>
+              <div style="grid-column: span 2;"><div class="field-name">Status</div><div class="field-value">⏳ Oczekuje na weryfikację</div></div>
+              <div style="grid-column: span 2; color:#2ecc71;"><div class="field-name">Status (zduplikowany!)</div><div class="field-value">✅ ZATWIERDZONO przez @karmi77</div></div>
+            </div>
+            <div class="embed-footer">ID zgłoszenia: 119</div>
+          </div>
+        </div>
+
+        <!-- PO -->
+        <div class="comparison-card after">
+          <span class="comparison-badge badge-after">NOWY WYGLĄD (NAPRAWIONY)</span>
+          <div class="discord-embed green">
+            <div class="embed-title">💰 Zgłoszenie Wpłaty #119 — Zatwierdzone</div>
+            <div class="embed-desc">
+              <h3>💵 Kwota: 8 000$</h3>
+              <div class="blockquote">
+                👤 <b>Wpłacający:</b> <span class="mention">@MrSlavic</span><br>
+                🏷️ <b>Typ wpłaty:</b> <span class="code-inline">Dobrowolna</span><br>
+                🎮 <b>Nick w grze:</b> <span class="code-inline">MrSlavic</span><br>
+                🔑 <b>Login w grze:</b> <span class="code-inline">MrSlavic</span>
+              </div>
+              <div class="status-badge approved">🟢 Status: ZATWIERDZONO przez @karmi77</div>
+            </div>
+            <div class="embed-footer">ID zgłoszenia: #119 • Team77 Weryfikacja • Dziś o 12:57</div>
+          </div>
+          <div class="discord-buttons" style="margin-top: 8px;">
+            <button class="btn btn-green btn-disabled" disabled>✅ Zatwierdzono (karmi77)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 2. PUBLICZNE OGŁOSZENIE WPŁATY -->
+    <div>
+      <div class="section-title">
+        2. Nowe Publiczne Ogłoszenie Wpłaty
+        <span class="badge">#wplaty</span>
+      </div>
+
+      <div class="discord-message">
+        <div class="avatar">T77</div>
+        <div class="message-content">
+          <div class="author-line">
+            <span class="author-name">Team77</span>
+            <span class="bot-tag">BOT</span>
+            <span class="timestamp">Dzisiaj o 12:58</span>
+          </div>
+
+          <div class="discord-embed green">
+            <div class="embed-title">🎉 Wpłata na Konto Organizacji</div>
+            <div class="embed-desc">
+              <h3 style="color:#57f287;">💸 +8 000$ na konto organizacji!</h3>
+              <p style="margin-bottom: 8px;">Wpłata członka <b>MrSlavic</b> została pomyślnie zweryfikowana i zaksięgowana w budżecie <b>Team77</b>.</p>
+              <div class="blockquote">
+                👤 <b>Wpłacający:</b> <span class="mention">@MrSlavic</span><br>
+                🏷️ <b>Rodzaj wpłaty:</b> <span class="code-inline">Dobrowolna</span><br>
+                🎮 <b>Konto w grze:</b> <span class="code-inline">MrSlavic</span> <i>(login: <span class="code-inline">MrSlavic</span>)</i>
+              </div>
+              <div class="subtext">🛡️ Zweryfikowano przez <b>karmi77</b> • Dziękujemy za wsparcie!</div>
+            </div>
+
+            <!-- Podgląd zrzutu ekranu z MTA -->
+            <div class="embed-image">
+              <div style="color: #949ba4; font-size: 13px; text-align: center;">
+                📷 <b>[Zrzut ekranu z bankomatu MTA]</b><br>
+                <span style="font-size: 11px;">Stan konta organizacji: 458 000$ • Wpłata: 8 000$</span>
+              </div>
+            </div>
+
+            <div class="embed-footer">Team77 • System Wpłat • Dzisiaj o 12:58</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- 3. PRZYKLEJONA INSTRUKCJA SYSTEMU WPŁAT -->
+    <div>
+      <div class="section-title">
+        3. Przyklejona Instrukcja Systemu Wpłat (Dół kanału)
+        <span class="badge">Interaktywne Przyciski</span>
+      </div>
+
+      <div class="discord-message">
+        <div class="avatar">T77</div>
+        <div class="message-content">
+          <div class="author-line">
+            <span class="author-name">Team77</span>
+            <span class="bot-tag">BOT</span>
+            <span class="timestamp">Dzisiaj o 12:58</span>
+          </div>
+
+          <div class="discord-embed gold">
+            <div class="embed-title">💳 System Wpłat na Konto Organizacji</div>
+            <div class="embed-desc">
+              <p>Wpłaty w bankomacie serwerowym zgłaszamy komendą:</p>
+              <h3 style="color:#f1c40f; margin-top: 4px;">🔹 <span class="code-inline" style="color: #5865f2; font-size: 15px;">/wplata zgloszenie</span></h3>
+              <div class="blockquote" style="margin: 8px 0 12px 0;">
+                W formularzu podaj kwotę, rodzaj wpłaty, swój nick i login oraz załącz zrzut ekranu z gry.
+              </div>
+              <p><b>📋 Zasady poprawnego dowodu wpłaty:</b></p>
+              <p style="font-size: 13px; margin: 2px 0 0 12px; color: #dbdee1;">• Zrzut ekranu <b>musi</b> zawierać widoczną <b>datę i godzinę</b> wpłaty z czatu/HUD.</p>
+              <p style="font-size: 13px; margin: 2px 0 0 12px; color: #dbdee1;">• Musi być widoczny <b>aktualny stan konta</b> organizacji po transakcji.</p>
+              <p style="font-size: 13px; margin: 2px 0 0 12px; color: #dbdee1;">• Zrzut ekranu nie może być ucięty ani zasłonięty.</p>
+            </div>
+
+            <div class="embed-fields" style="border-top: 1px solid #35363c; padding-top: 8px;">
+              <div>
+                <div class="field-name">📊 Ranking Wpłat</div>
+                <div class="field-value"><span class="code-inline">/wplata ranking</span><br><span style="font-size: 11px; color: #949ba4;">TOP 10 honorowych dawców</span></div>
+              </div>
+              <div>
+                <div class="field-name">💰 Twoja Suma</div>
+                <div class="field-value"><span class="code-inline">/wplata moje</span><br><span style="font-size: 11px; color: #949ba4;">Suma Twoich wpłat dobrowolnych</span></div>
+              </div>
+            </div>
+
+            <div class="embed-footer">Team77 • System Wpłat</div>
+          </div>
+
+          <!-- NOWE PRZYCISKI INTERAKTYWNE -->
+          <div class="discord-buttons">
+            <button class="btn btn-blue" onclick="alert('Kliknięto Ranking! Wyświetla prywatne okno TOP 10 wpłat.')">📊 Ranking Wpłat</button>
+            <button class="btn btn-gray" onclick="alert('Kliknięto Moje Wpłaty! Wyświetla prywatnie sumę Twoich wpłat.')">💰 Moje Wpłaty</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
