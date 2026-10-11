@@ -276,6 +276,7 @@ def build_review_embed(
     """Buduje embed zgłoszenia kandydata na kanał przeglądu zarządu, w 100% zgodny z preview_applications_new.html."""
     author = interaction.user
     nick = fields.get("Nick") or author.display_name
+    login = fields.get("Login") or nick
     uid = fields.get("UID", "?")
     age = fields.get("Wiek", "?")
     rp = fields.get("RP", "?")
@@ -306,7 +307,10 @@ def build_review_embed(
 
     embed = discord.Embed(
         title=f"Podanie Kandydata: {nick}",
-        description="Kandydat złożył podanie do organizacji. Sprawdź poniższe dane i podejmij decyzję:",
+        description=(
+            f"👤 **Konto Discord:** {author.mention} (`{author.name}` • ID: `{author.id}`)\n"
+            "Kandydat złożył podanie do organizacji. Sprawdź poniższe dane i podejmij decyzję:"
+        ),
         color=border_color,
         timestamp=discord.utils.utcnow()
     )
@@ -323,7 +327,8 @@ def build_review_embed(
     )
 
     # 6 pól w układzie siatki (cols-3)
-    embed.add_field(name="🪪 Nick & Discord", value=f"**@{nick}** ({author.mention})", inline=True)
+    nick_login_val = f"**{nick}** / **{login}**" if login and login.lower() != nick.lower() else f"**{nick}**"
+    embed.add_field(name="🪪 Nick & Login", value=nick_login_val, inline=True)
     embed.add_field(name="🆔 UID w grze", value=f"**{uid}**", inline=True)
     embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
     embed.add_field(name="⏱️ Godziny / RP", value=f"**{rp}**", inline=True)
@@ -446,12 +451,12 @@ async def _show_application_status(interaction: discord.Interaction) -> None:
         description="Informacje o Twoim ostatnim złożonym podaniu do organizacji:",
         color=0x00E5FF
     )
-    embed.set_author(name="STATUS APLIKACJI • AEGIS RECRUITMENT")
+    embed.set_author(name="STATUS APLIKACJI")
     embed.add_field(name="🆔 Numer Zgłoszenia", value=f"**#{app_id}**", inline=True)
     embed.add_field(name="📌 Aktualny Status", value=f"**{status_text}**", inline=True)
     embed.add_field(name="📅 Data Złożenia", value=date_str, inline=True)
     embed.add_field(name="⏱️ Przewidywany Czas", value="~1-2 godziny", inline=True)
-    embed.set_footer(text="Wiadomość widoczna tylko dla Ciebie (Ephemeral)")
+    embed.set_footer(text="Wiadomość widoczna tylko dla Ciebie")
 
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -459,13 +464,12 @@ async def _show_application_status(interaction: discord.Interaction) -> None:
 async def _show_recruitment_rules(interaction: discord.Interaction) -> None:
     """Wyświetla efemeryczny regulamin rekrutacji (przycisk '📜 Regulamin')."""
     embed = discord.Embed(
-        title="📜 Regulamin Organizacji Team77",
+        title="📜 Skrócony Regulamin Organizacji Team77",
         description=(
             "• **Szacunek:** Wzajemny szacunek i kultura na kanałach głosowych oraz tekstowych.\n"
-            "• **Aktywność:** Wymagana regularna gra (min. 3-5h tygodniowo) i obecność na serwerze Discord.\n"
+            "• **Aktywność:** Regularna aktywność przez 2 tygodnie i obecność na serwerze Discord.\n"
             "• **Wpisowe:** Zgoda na uiszczenie jednorazowego wpisowego **3,000 PLN** na rzecz floty po przyjęciu.\n"
             "• **Flota Pojazdów:** Naprawianie i tankowanie (min. 90%) każdego odstawianego pojazdu do bazy.\n"
-            "• **Urlopy:** Zgłaszanie nieobecności dłuższych niż 3 dni na dedykowanym kanale.\n"
             "• **Zasady:** Całkowity zakaz działania na szkodę organizacji i wynoszenia informacji ze strefy wewnętrznej."
         ),
         color=0x5865F2
@@ -905,12 +909,12 @@ async def _handle_decision(
             dm_embed.set_author(name="DECYZJA ZARZĄDU • REKRUTACJA TEAM77")
             dm_embed.add_field(
                 name="❌ Powód Decyzji",
-                value=f"*{reason or 'Zbyt mała ilość godzin na serwerze lub aktywne kary w kartotece.'}*",
+                value=f"*{reason or 'Aktywne kary w kartotece.'}*",
                 inline=False
             )
             dm_embed.add_field(
                 name="⏳ Kolejna Próba",
-                value="Możesz złożyć kolejne podanie za **7 dni** po poprawie aktywności.",
+                value="Możesz złożyć kolejne podanie za **2 dni** po poprawie aktywności.",
                 inline=False
             )
             dm_embed.set_footer(text="Życzymy powodzenia na serwerze! • Zarząd Team77")

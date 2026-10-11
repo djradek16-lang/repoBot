@@ -686,6 +686,10 @@
           <input type="text" id="inpNick" class="control-input" value="Kamil_Pro" oninput="renderCurrent()">
         </div>
         <div class="control-item">
+          <label class="control-label" for="inpLogin">Login z gry:</label>
+          <input type="text" id="inpLogin" class="control-input" value="kamilos" oninput="renderCurrent()">
+        </div>
+        <div class="control-item">
           <label class="control-label" for="inpUID">UID w grze:</label>
           <input type="text" id="inpUID" class="control-input" value="12492" oninput="renderCurrent()">
         </div>
@@ -849,6 +853,7 @@
 
     function renderCurrent() {
       const nick = document.getElementById('inpNick').value || 'Kandydat';
+      const login = (document.getElementById('inpLogin') ? document.getElementById('inpLogin').value : '') || 'kamilos';
       const uid = document.getElementById('inpUID').value || '1234';
       const age = document.getElementById('inpAge').value || '18';
       const rp = document.getElementById('inpRP').value || '350 godz.';
@@ -860,7 +865,7 @@
       if (activeTab === 'start') {
         renderStartTab(chat);
       } else if (activeTab === 'review') {
-        renderReviewTab(chat, nick, uid, age, rp, audit, decision);
+        renderReviewTab(chat, nick, login, uid, age, rp, audit, decision);
       } else if (activeTab === 'dm') {
         renderDmTab(chat, nick, decision);
       } else if (activeTab === 'status') {
@@ -920,7 +925,7 @@
       `;
     }
 
-    function renderReviewTab(chat, nick, uid, age, rp, audit, decision) {
+    function renderReviewTab(chat, nick, login, uid, age, rp, audit, decision) {
       let auditBadge = '';
       if (audit === 'clean') {
         auditBadge = '<span class="audit-tag audit-clean">🟢 Czyste Konto Kar</span> • Profil zweryfikowany na forum';
@@ -938,7 +943,7 @@
         statusLine = '<b style="color: #23a55a;">✅ ZAAKCEPTOWANE PRZEZ @leiz77 (Rola Rekruta nadana)</b>';
         borderClass = 'border-emerald';
       } else {
-        statusLine = '<b style="color: #f23f43;">❌ ODRZUCONE PRZEZ @leiz77 (Powód: Zbyt mało godzin)</b>';
+        statusLine = '<b style="color: #f23f43;">❌ ODRZUCONE PRZEZ @leiz77 (Powód: Aktywne kary w kartotece)</b>';
         borderClass = 'border-danger';
       }
 
@@ -960,6 +965,7 @@
                 <span>Podanie Kandydata: ${nick}</span>
               </div>
               <div class="embed-desc">
+                👤 <b>Konto Discord:</b> <span style="color: #5865F2; background: rgba(88,101,242,0.18); padding: 1px 7px; border-radius: 4px; font-weight: 600;">@${nick}</span> <span style="color: #949ba4; font-size: 12px;">(ID: 48921849182391)</span><br>
                 Kandydat złożył podanie do organizacji. Sprawdź poniższe dane i podejmij decyzję:
               </div>
 
@@ -970,8 +976,8 @@
 
               <div class="embed-fields cols-3">
                 <div class="embed-field">
-                  <span class="field-name">🪪 Nick & Discord</span>
-                  <span class="field-value"><b>@${nick}</b></span>
+                  <span class="field-name">🪪 Nick & Login</span>
+                  <span class="field-value"><b>${nick} / ${login}</b></span>
                 </div>
                 <div class="embed-field">
                   <span class="field-name">🆔 UID w grze</span>
