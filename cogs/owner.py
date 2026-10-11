@@ -69,11 +69,23 @@ class OwnerCog(commands.Cog):
                 await interaction.followup.send(embed=error_embed("Błąd Operacji na Module", f"Nie udało się załadować/przeładować `{cog_name}`:\n`{e}`"))
 
     @owner_group.command(name="git_pull", description="Pobiera najnowsze pliki z repozytorium Git (git pull) bezpośrednio na hoście.")
-    @app_commands.describe(reload_after="Czy automatycznie przeładować moduły Cog po pobraniu zmian")
+    @app_commands.describe(
+        reload_after="Czy automatycznie przeładować moduły Cog po pobraniu zmian",
+        force="Wymusza zsynchronizowanie serwera z repozytorium (odrzuca lokalne edycje)"
+    )
     @is_owner()
-    async def git_pull(self, interaction: discord.Interaction, reload_after: bool = True) -> None:
+    async def git_pull(self, interaction: discord.Interaction, reload_after: bool = True, force: bool = True) -> None:
         await interaction.response.defer(ephemeral=True)
         try:
+            if force:
+                discard_proc = await asyncio.create_subprocess_exec(
+                    "git", "checkout", "--", ".",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=str(config.BASE_DIR)
+                )
+                await discard_proc.communicate()
+
             proc = await asyncio.create_subprocess_exec(
                 "git", "pull",
                 stdout=asyncio.subprocess.PIPE,
