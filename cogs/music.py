@@ -53,7 +53,7 @@ INACTIVITY_TIMEOUT_SECONDS = 180
 # - AUDYCJA_EDIT_INTERVAL_SECONDS: jak często odświeżamy samą wiadomość na
 #   Discordzie - między fetchami korzystamy z ostatnio pobranych danych
 #   (patrz _local_promote), więc edycja NIE oznacza nowego zapytania do API.
-AUDYCJA_FETCH_INTERVAL_SECONDS = 30 * 60  # 30 minut
+AUDYCJA_FETCH_INTERVAL_SECONDS = 120       # 2 minuty (szybkie wykrywanie wejścia DJ-a na antenę)
 AUDYCJA_EDIT_INTERVAL_SECONDS = 60        # 1 minuta
 AUDYCJA_FAIL_THRESHOLD = 3                # ile kolejnych nieudanych edycji z rzędu = wiadomość uznana za "martwą"
 
@@ -1346,48 +1346,55 @@ class Music(commands.Cog, name="MusicCog"):
 
     async def _restore_audycja_messages(self) -> None:
         state = _load_audycja_state()
-        if not state:
-            return
-
         new_state = {}
 
-        for gid_str, loc in state.items():
-            try:
-                guild_id = int(gid_str)
-                channel_id = int(loc["channel_id"])
-            except (KeyError, ValueError, TypeError):
-                continue
-
-            channel = self.bot.get_channel(channel_id)
-            if channel is None:
+        if state:
+            for gid_str, loc in state.items():
                 try:
-                    channel = await self.bot.fetch_channel(channel_id)
-                except Exception as e:
-                    logger.warning(f"Nie znaleziono kanału audycji ({channel_id}) dla serwera {gid_str}: {e}")
+                    guild_id = int(gid_str)
+                    channel_id = int(loc["channel_id"])
+                except (KeyError, ValueError, TypeError):
                     continue
 
-            guild = getattr(channel, "guild", None) or self.bot.get_guild(guild_id)
-            embed = await self._get_current_audycja_embed(guild=guild)
+                channel = self.bot.get_channel(channel_id)
+                if channel is None:
+                    try:
+                        channel = await self.bot.fetch_channel(channel_id)
+                    except Exception as e:
+                        logger.warning(f"Nie znaleziono kanału audycji ({channel_id}) dla serwera {gid_str}: {e}")
+                        continue
 
-            old_message_id = loc.get("message_id")
-            if old_message_id:
+                guild = getattr(channel, "guild", None) or self.bot.get_guild(guild_id)
+                embed = await self._get_current_audycja_embed(guild=guild)
+
+                old_message_id = loc.get("message_id")
+                if old_message_id:
+                    try:
+                        old_msg = await channel.fetch_message(int(old_message_id))
+                        await old_msg.delete()
+                    except Exception:
+                        pass  # stara wiadomość mogła już nie istnieć — nic się nie stanie
+
                 try:
-                    old_msg = await channel.fetch_message(int(old_message_id))
-                    await old_msg.delete()
-                except Exception:
-                    pass  # stara wiadomość mogła już nie istnieć — nic się nie stanie
+                    new_msg = await channel.send(embed=embed, view=AudycjaControlView())
+                except Exception as e:
+                    logger.error(f"Nie udało się przywrócić wiadomości audycji dla serwera {gid_str}: {e}")
+                    continue
 
-            try:
-                new_msg = await channel.send(embed=embed, view=AudycjaControlView())
-            except Exception as e:
-                logger.error(f"Nie udało się przywrócić wiadomości audycji dla serwera {gid_str}: {e}")
-                continue
+                self._audycja_messages[guild_id] = new_msg
+                new_state[gid_str] = {"channel_id": channel_id, "message_id": new_msg.id}
+                logger.info(f"Przywrócono kartę audycji po restarcie bota (serwer {gid_str}).")
+        else:
+            # Gdy stan był pusty (np. świeża instalacja bota), znajdź kanał audycji automatycznie
+            for guild in self.bot.guilds:
+                ch = self._find_audycja_channel(guild)
+                if ch:
+                    new_msg = await self._recreate_audycja_message(guild.id, ch)
+                    if new_msg:
+                        new_state[str(guild.id)] = {"channel_id": ch.id, "message_id": new_msg.id}
 
-            self._audycja_messages[guild_id] = new_msg
-            new_state[gid_str] = {"channel_id": channel_id, "message_id": new_msg.id}
-            logger.info(f"Przywrócono kartę audycji po restarcie bota (serwer {gid_str}).")
-
-        _save_audycja_state(new_state)
+        if new_state:
+            _save_audycja_state(new_state)
         if self._audycja_messages and not self._refresh_audycja.is_running():
             self._refresh_audycja.start()
 
