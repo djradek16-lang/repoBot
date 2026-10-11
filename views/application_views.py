@@ -400,7 +400,7 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
 
     if guild.icon:
         embed.set_thumbnail(url=guild.icon.url)
-    embed.set_footer(text="Kliknij przycisk poniżej, aby otworzyć bezpieczny formularz GUI • Team77 v2.5")
+    embed.set_footer(text="Kliknij przycisk poniżej, aby otworzyć formularz • Team77")
     return embed
 
 
