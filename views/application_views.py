@@ -34,6 +34,8 @@ logger = logging.getLogger("AegisBot.Views.Applications")
 
 CUSTOM_ID_TEMPLATE = r"app_decision:(?P<action>accept|reject|delete|lookup):(?P<user_id>[0-9]+)"
 START_BUTTON_CUSTOM_ID = "app_start_button"
+CHECK_STATUS_BUTTON_CUSTOM_ID = "app_check_status_button"
+RULES_BUTTON_CUSTOM_ID = "app_rules_button"
 
 # Etykiety pól formularza w kolejności występowania w formularzu (Modal).
 REQUIRED_LABELS: list[str] = [
@@ -41,16 +43,18 @@ REQUIRED_LABELS: list[str] = [
     "Login",
     "UID",
     "Wiek",
+    "RP",
     "Dlaczego Team77? (Krótkie uzasadnienie)",
 ]
 
 # Krótsze, czytelne etykiety do wyświetlenia w embedzie.
 DISPLAY_LABELS: dict[str, str] = {
-    "Nick": "🪪 1. Nick",
-    "Login": "🔑 2. Login",
-    "UID": "🆔 3. UID",
-    "Wiek": "🎂 4. Wiek",
-    "Dlaczego Team77? (Krótkie uzasadnienie)": "💬 5. Dlaczego Team77?",
+    "Nick": "🪪 Nick",
+    "Login": "🔑 Login",
+    "UID": "🆔 UID",
+    "Wiek": "🎂 Wiek",
+    "RP": "⏱️ Godziny / RP",
+    "Dlaczego Team77? (Krótkie uzasadnienie)": "💬 Uzasadnienie",
 }
 
 # Znaki specjalne Discord Markdown, które mogą uruchomić formatowanie, gdy
@@ -237,179 +241,242 @@ def _find_recruit_role(guild: discord.Guild) -> Optional[discord.Role]:
 
 
 def _decided_embed(original: discord.Embed, action: str, decided_by: Any, reason: Optional[str] = None) -> discord.Embed:
-    """Zwraca kopię embedu zgłoszenia oznaczoną jako zaakceptowaną/odrzuconą."""
+    """Zwraca kopię embedu zgłoszenia oznaczoną jako zaakceptowaną/odrzuconą,
+    dokładnie aktualizując pole '📌 Aktualny Stan Decyzji' oraz kolor embedu."""
     embed = original.copy()
     decided_by_text = decided_by.mention if hasattr(decided_by, "mention") else str(decided_by or "System")
-    if action == "accept":
-        embed.color = config.SUCCESS_COLOR
-        status_line = f"✅ **Zaakceptowano** przez {decided_by_text}"
-    else:
-        embed.color = config.ERROR_COLOR
-        status_line = f"❌ **Odrzucono** przez {decided_by_text}"
-        if reason:
-            status_line += f"\n📝 **Powód:** {reason}"
 
-    if embed.description and "Zgłaszający" in embed.description:
-        embed.description = f"{embed.description}\n\n{status_line}"
+    if action == "accept":
+        embed.color = 0x23A55A  # Emerald #23a55a
+        status_line = f"✅ **ZAAKCEPTOWANE PRZEZ {decided_by_text} (Rola Rekruta nadana)**"
     else:
-        embed.description = status_line
+        embed.color = 0xF23F43  # Danger #f23f43
+        r_text = f" (Powód: {reason})" if reason else " (Powód: Zbyt mała ilość godzin na serwerze lub aktywne kary w kartotece.)"
+        status_line = f"❌ **ODRZUCONE PRZEZ {decided_by_text}{r_text}**"
+
+    updated = False
+    for i, field in enumerate(embed.fields):
+        if "Aktualny Stan Decyzji" in field.name:
+            embed.set_field_at(i, name=field.name, value=status_line, inline=False)
+            updated = True
+            break
+
+    if not updated:
+        embed.add_field(name="📌 Aktualny Stan Decyzji", value=status_line, inline=False)
 
     return embed
 
 
-def build_review_embed(interaction: discord.Interaction, fields: dict[str, str], verification: dict | None = None) -> discord.Embed:
-    embed_color = 0xF1C40F  # Złoty kolor Team77
-    if verification and verification.get("status") in ("mismatch", "not_found", "error"):
-        embed_color = 0xE67E22
-    elif verification and verification.get("status") == "match":
-        embed_color = 0x2ECC71
-
+def build_review_embed(
+    interaction: discord.Interaction,
+    fields: dict[str, str],
+    verification: dict | None = None,
+    app_id: int = 1
+) -> discord.Embed:
+    """Buduje embed zgłoszenia kandydata na kanał przeglądu zarządu, w 100% zgodny z preview_applications_new.html."""
     author = interaction.user
+    nick = fields.get("Nick") or author.display_name
+    uid = fields.get("UID", "?")
+    age = fields.get("Wiek", "?")
+    rp = fields.get("RP", "?")
+    why = fields.get("Dlaczego Team77? (Krótkie uzasadnienie)", "*brak odpowiedzi*")
+
+    border_color = 0x5865F2  # Brand blurple domyślnie
+    if verification:
+        status = verification.get("status")
+        forum_uid = verification.get("forum_uid")
+        profile_url = verification.get("profile_url")
+        if status == "match":
+            border_color = 0x23A55A  # Emerald
+            audit_badge = f"🟢 **Czyste Konto Kar** • Profil zweryfikowany na forum (UID `{forum_uid}`)"
+        elif status == "mismatch":
+            border_color = 0xE67E22  # Orange
+            audit_badge = f"🟡 **1 Wyciszenie / Niezgodność UID** • Wymagana weryfikacja zarządu (UID `{forum_uid}`)"
+        elif status == "not_found":
+            border_color = 0xF23F43  # Danger
+            audit_badge = f"🔴 **Brak profilu** • Nie odnaleziono konta `{nick}` na forum ProjectRPG"
+        else:
+            border_color = 0x5865F2
+            audit_badge = "⚪ **Weryfikacja forum** • Sprawdź profil ręcznie"
+
+        if profile_url:
+            audit_badge += f"\n[🔗 Otwórz profil na forum ProjectRPG]({profile_url})"
+    else:
+        audit_badge = "⚪ **Brak danych audytu forum**"
+
     embed = discord.Embed(
-        title="📥 Nowa aplikacja rekrutacyjna — Team77",
-        description=(
-            f"👤 **Kandydat:** {author.mention} (`{author.name}` • ID: `{author.id}`)\n"
-            f"📅 **Data złożenia:** <t:{int(discord.utils.utcnow().timestamp())}:F>"
-        ),
-        color=embed_color,
+        title=f"Podanie Kandydata: {nick}",
+        description="Kandydat złożył podanie do organizacji. Sprawdź poniższe dane i podejmij decyzję:",
+        color=border_color,
         timestamp=discord.utils.utcnow()
     )
-    embed.set_author(name=f"{author.display_name} ({author.id})", icon_url=author.display_avatar.url)
+    embed.set_author(
+        name=f"🛡️ PANEL ZARZĄDU • NOWE ZGŁOSZENIE #{app_id}",
+        icon_url=author.display_avatar.url
+    )
     embed.set_thumbnail(url=author.display_avatar.url)
 
-    # Pola podstawowe (Nick, Login, UID, Wiek) w układzie inline
-    inline_keys = ["Nick", "Login", "UID", "Wiek"]
-    for key in inline_keys:
-        val = _field_display(fields.get(key, ""))
-        embed.add_field(name=DISPLAY_LABELS.get(key, key), value=f"`{val}`", inline=True)
-
-    # Pole uzasadnienia (Dlaczego Team77) na pełną szerokość
-    why_key = "Dlaczego Team77? (Krótkie uzasadnienie)"
-    why_val = _field_display(fields.get(why_key, ""))
     embed.add_field(
-        name=DISPLAY_LABELS.get(why_key, "💬 5. Dlaczego Team77?"),
-        value=f"> {why_val}" if why_val != "*brak odpowiedzi*" else "*brak odpowiedzi*",
+        name="🔎 Weryfikacja Forum ProjectRPG",
+        value=audit_badge,
         inline=False
     )
 
-    if verification:
-        status = verification.get("status", "unknown")
-        provided_uid = fields.get("UID", "?")
-        if status == "match":
-            v_text = f"✅ Zgadza się z forum (UID `{verification.get('forum_uid')}`)"
-        elif status == "mismatch":
-            v_text = f"⚠️ **NIEZGODNOŚĆ** — forum wskazuje UID `{verification.get('forum_uid')}`, w zgłoszeniu podano `{provided_uid}`"
-        elif status == "not_found":
-            safe_nick = _MARKDOWN_SPECIAL_RE.sub("\\1\u200b", fields.get("Nick", "") or "?")
-            v_text = f"❌ Nie znaleziono profilu **{safe_nick}** na forum ProjectRPG (sprawdzono Nick, Login, UID) — wymagana weryfikacja ręczna"
-        elif status == "unknown":
-            v_text = "❔ Znaleziono profil, ale nie udało się odczytać UID ze strony — wymagana weryfikacja ręczna"
-        else:
-            v_text = "⏳ Weryfikacja nieudana (błąd/timeout połączenia z forum) — wymagana weryfikacja ręczna"
+    # 6 pól w układzie siatki (cols-3)
+    embed.add_field(name="🪪 Nick & Discord", value=f"**@{nick}** ({author.mention})", inline=True)
+    embed.add_field(name="🆔 UID w grze", value=f"**{uid}**", inline=True)
+    embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
+    embed.add_field(name="⏱️ Godziny / RP", value=f"**{rp}**", inline=True)
+    embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k PLN)**", inline=True)
+    embed.add_field(name="🟢 Status na DC", value="**Obecny na serwerze**", inline=True)
 
-        if verification.get("profile_url"):
-            link_label = "🔗 Otwórz profil na forum ProjectRPG" if status in ("match", "mismatch", "unknown") else "🔎 Szukaj na forum"
-            v_text += f"\n[{link_label}]({verification['profile_url']})"
+    # Uzasadnienie kandydata (pełna szerokość)
+    clean_why = _field_display(why)
+    embed.add_field(
+        name="💬 Uzasadnienie kandydata",
+        value=f'*"{clean_why}"*' if clean_why != "*brak odpowiedzi*" else "*brak odpowiedzi*",
+        inline=False
+    )
 
-        embed.add_field(name="🔎 Weryfikacja forum ProjectRPG", value=v_text, inline=False)
+    # Aktualny stan decyzji (pełna szerokość)
+    embed.add_field(
+        name="📌 Aktualny Stan Decyzji",
+        value="⏳ **OCZEKUJE NA DECYZJĘ ZARZĄDU**",
+        inline=False
+    )
 
-    embed.set_footer(text="Team77 • System Rekrutacji • Wybierz akcję decyzyjną poniżej")
+    now_time = discord.utils.utcnow().strftime("%H:%M")
+    embed.set_footer(text=f"ID Zgłoszenia: APP-{app_id} • Złożono dzisiaj o {now_time} • Zarząd Team77")
     return embed
 
 
-def build_dm_embed(fields: dict[str, str], guild: discord.Guild) -> discord.Embed:
+def build_dm_embed(fields: dict[str, str], guild: discord.Guild, app_id: int = 1) -> discord.Embed:
+    """Buduje oficjalne DM z potwierdzeniem przyjęcia podania do kolejki."""
+    nick = fields.get("Nick") or "Kandydat"
     embed = discord.Embed(
-        title="📨 Twoja aplikacja do Team77 została złożona!",
+        title="Aplikacja Przyjęta do Kolejki",
         description=(
-            f"Dziękujemy za złożenie podania do organizacji **Team77** na serwerze **{guild.name}**!\n"
-            "Zgłoszenie zostało pomyślnie zarejestrowane i przekazane do zarządu. "
-            "Poniżej znajduje się podsumowanie Twoich odpowiedzi:\n"
+            f"Hej **{nick}**! Twoje podanie zostało bezpiecznie zarejestrowane w naszym systemie pod numerem **#{app_id}**.\n\n"
+            "Zarząd otrzymał powiadomienie na kanale przeglądu. O decyzji powiadomimy Cię w kolejnej prywatnej wiadomości!"
         ),
-        color=0xF1C40F,
+        color=0x5865F2,
         timestamp=discord.utils.utcnow()
     )
-
-    for key in ["Nick", "Login", "UID", "Wiek"]:
-        embed.add_field(name=DISPLAY_LABELS.get(key, key), value=_field_display(fields.get(key, "")), inline=True)
-
-    why_key = "Dlaczego Team77? (Krótkie uzasadnienie)"
-    embed.add_field(
-        name=DISPLAY_LABELS.get(why_key, "💬 5. Dlaczego Team77?"),
-        value=_field_display(fields.get(why_key, "")),
-        inline=False
-    )
-
-    embed.add_field(
-        name="📌 Co dalej?",
-        value=(
-            "Zarząd organizacji zapozna się z Twoim podaniem. Gdy tylko zapadnie decyzja, "
-            "otrzymasz powiadomienie w wiadomości prywatnej (DM). Prosimy o cierpliwość!"
-        ),
-        inline=False
-    )
-
+    embed.set_author(name="POTWIERDZENIE ZŁOŻENIA PODANIA")
+    embed.set_footer(text="Czas oczekiwania wynosi zazwyczaj od 1 do 12 godzin.")
     if guild.icon:
         embed.set_thumbnail(url=guild.icon.url)
-    embed.set_footer(text="Team77 • System Rekrutacji")
     return embed
 
 
 def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
-    """Buduje embed rekrutacyjny do wysłania komendą /config post_button na
-    kanał zgłoszeń, razem z trwałym przyciskiem ApplicationStartButton.
-    """
+    """Buduje embed rekrutacyjny wysyłany na kanał #rekrutacja komendą /config post_button,
+    zgodny 1:1 z renderStartTab w preview_applications_new.html."""
     embed = discord.Embed(
-        title="🏛️ REKRUTACJA — ORGANIZACJA TEAM77",
+        title="Dołącz do Elitarnej Organizacji Team77!",
         description=(
-            "Dołącz do elitarnej organizacji na serwerze ProjectRPG!\n\n"
-            "Szukamy aktywnych, dojrzałych i zgranych graczy, którzy chcą wspólnie budować potęgę Team77. "
-            "U nas liczy się dobra atmosfera, wzajemny szacunek i wspólna zabawa."
+            "Szukasz zgranej ekipy, luźnej atmosfery, cotygodniowych premii, bogatej floty pojazdów i wspólnych akcji na serwerze **ProjectRPG**?\n\n"
+            "Złóż podanie za pomocą poniższego formularza! Nasz zarząd rozpatrzy Twoją aplikację zazwyczaj w ciągu **kilku godzin**."
         ),
-        color=0xF1C40F
+        color=0x23A55A  # #23a55a
     )
+    embed.set_author(name="🛡️ OFICJALNA REKRUTACJA • ORGANIZACJA TEAM77")
 
     embed.add_field(
-        name="✨ CO OFERUJEMY",
-        value=(
-            "🔹 Rozbudowaną flotę pojazdów organizacyjnych\n"
-            "🔹 Aktywny, zintegrowany zarząd i pomocną ekipę\n"
-            "🔹 Cotygodniowe premie, eventy i konkursy z nagrodami\n"
-            "🔹 Dostęp do rozbudowanego bota"
-        ),
-        inline=False
+        name="📋 Wymagania Podstawowe",
+        value="• Wiek: **15+ lat**\n• Sprawny mikrofon & Discord\n• Kultura osobista",
+        inline=True
     )
-
     embed.add_field(
-        name="📌 WYMAGANIA REKRUTACYJNE",
-        value=(
-            "🔹 Kultura osobista oraz szacunek do członków organizacji\n"
-            "🔹 Posiadanie sprawnego mikrofonu i obecność na Discordzie\n"
-            "🔹 Aktywność w grze oraz chęć integracji z zespołem\n"
-            "🔹 Gotowość do opłacenia wpisowego organizacyjnego (3 000 PLN)"
-        ),
-        inline=False
-    )
-
-    embed.add_field(
-        name="📝 PROCES APLIKACJI",
-        value=(
-            "1️⃣ Kliknij przycisk **Złóż aplikację** poniżej.\n"
-            "2️⃣ Wypełnij krótki formularz zgłoszeniowy (5 pytań).\n"
-            "3️⃣ Zarząd rozpatrzy Twoje zgłoszenie w kanale weryfikacji.\n"
-            "4️⃣ Otrzymasz natychmiastowe powiadomienie na DM o decyzji!"
-        ),
-        inline=False
+        name="🎮 Wymagania w Grze",
+        value="• Min. **150 RP** na koncie\n• Wpisowe: **3,000 PLN**\n• Brak aktywnych banów",
+        inline=True
     )
 
     if guild.icon:
         embed.set_thumbnail(url=guild.icon.url)
-    embed.set_footer(text="Team77 • Rekrutacja • Kliknij przycisk poniżej, aby złożyć podanie")
+    embed.set_footer(text="Kliknij przycisk poniżej, aby otworzyć bezpieczny formularz GUI • Team77 v2.5")
     return embed
 
 
+async def _show_application_status(interaction: discord.Interaction) -> None:
+    """Wyświetla efemeryczny status podania kandydata (przycisk '📊 Sprawdź Moje Podanie')."""
+    bot = interaction.client
+    guild = interaction.guild
+    user = interaction.user
+    guild_id = guild.id if guild else 0
+
+    row = await bot.db.fetchone(
+        """
+        SELECT id, nick, status, created_at
+        FROM applications
+        WHERE user_id = ? AND (guild_id = ? OR guild_id = 0)
+        ORDER BY id DESC LIMIT 1
+        """,
+        (user.id, guild_id)
+    )
+
+    if not row:
+        await interaction.response.send_message(
+            embed=warning_embed(
+                "Brak Zgłoszenia",
+                "Nie znaleziono żadnego złożonego podania powiązanego z Twoim kontem w organizacji Team77."
+            ),
+            ephemeral=True
+        )
+        return
+
+    app_id = row["id"]
+    nick = row["nick"] or user.display_name
+    status_raw = (row["status"] or "pending").lower()
+
+    if status_raw == "accept":
+        status_text = "✅ Zaakceptowane"
+    elif status_raw == "reject":
+        status_text = "❌ Odrzucone"
+    else:
+        status_text = "⏳ W trakcie weryfikacji"
+
+    date_str = "Dzisiaj"
+    if row.get("created_at"):
+        date_str = str(row["created_at"])[:16]
+
+    embed = discord.Embed(
+        title=f"Twoje Zgłoszenie: {nick}",
+        description="Informacje o Twoim ostatnim złożonym podaniu do organizacji:",
+        color=0x00E5FF
+    )
+    embed.set_author(name="STATUS APLIKACJI • AEGIS RECRUITMENT")
+    embed.add_field(name="🆔 Numer Zgłoszenia", value=f"**#{app_id}**", inline=True)
+    embed.add_field(name="📌 Aktualny Status", value=f"**{status_text}**", inline=True)
+    embed.add_field(name="📅 Data Złożenia", value=date_str, inline=True)
+    embed.add_field(name="⏱️ Przewidywany Czas", value="~1-2 godziny", inline=True)
+    embed.set_footer(text="Wiadomość widoczna tylko dla Ciebie (Ephemeral)")
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+async def _show_recruitment_rules(interaction: discord.Interaction) -> None:
+    """Wyświetla efemeryczny regulamin rekrutacji (przycisk '📜 Regulamin')."""
+    embed = discord.Embed(
+        title="📜 Regulamin Organizacji Team77",
+        description=(
+            "• **Szacunek:** Wzajemny szacunek i kultura na kanałach głosowych oraz tekstowych.\n"
+            "• **Aktywność:** Wymagana regularna gra (min. 3-5h tygodniowo) i obecność na serwerze Discord.\n"
+            "• **Wpisowe:** Zgoda na uiszczenie jednorazowego wpisowego **3,000 PLN** na rzecz floty po przyjęciu.\n"
+            "• **Flota Pojazdów:** Naprawianie i tankowanie (min. 90%) każdego odstawianego pojazdu do bazy.\n"
+            "• **Urlopy:** Zgłaszanie nieobecności dłuższych niż 3 dni na dedykowanym kanale.\n"
+            "• **Zasady:** Całkowity zakaz działania na szkodę organizacji i wynoszenia informacji ze strefy wewnętrznej."
+        ),
+        color=0x5865F2
+    )
+    embed.set_footer(text="Team77 • Regulamin • Złożenie podania oznacza akceptację powyższych zasad")
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
 async def _process_application(interaction: discord.Interaction, fields: dict[str, str]) -> None:
-    """Przetwarza kompletne zgłoszenie: weryfikuje na forum, przekazuje na kanał
-    przeglądu z przyciskami decyzyjnymi, zapisuje do bazy i wysyła potwierdzenie DM."""
+    """Przetwarza kompletne zgłoszenie: weryfikuje na forum, zapisuje do bazy,
+    przekazuje na kanał przeglądu z przyciskami decyzyjnymi oraz wysyła DM z potwierdzeniem."""
     bot = interaction.client
     guild = interaction.guild
     author = interaction.user
@@ -422,6 +489,39 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
     )
 
     verification = await verify_against_forum(fields.get("Nick", ""), fields.get("Login", ""), fields.get("UID", ""))
+
+    forum_url = (verification or {}).get("profile_url") or ""
+    try:
+        await bot.db.execute(
+            """
+            INSERT INTO applications (
+                guild_id, user_id, nick, login, uid, age, rp_points, why,
+                recommended_by, rules_agreed, fee_agreed, forum_url, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+            """,
+            (
+                guild.id,
+                author.id,
+                fields.get("Nick", ""),
+                fields.get("Login", ""),
+                fields.get("UID", ""),
+                fields.get("Wiek", ""),
+                fields.get("RP", ""),
+                fields.get("Dlaczego Team77? (Krótkie uzasadnienie)", ""),
+                "",
+                "tak",
+                "tak",
+                forum_url,
+            )
+        )
+    except Exception as e:
+        logger.error(f"Błąd zapisu aplikacji do bazy danych: {e}")
+
+    app_id_row = await bot.db.fetchone(
+        "SELECT id FROM applications WHERE user_id = ? AND guild_id = ? ORDER BY id DESC LIMIT 1",
+        (author.id, guild.id)
+    )
+    app_id = app_id_row["id"] if app_id_row and "id" in app_id_row.keys() else 1
 
     review_channel_id = row["applications_review_channel_id"] if row else None
     management_role_id = row["applications_management_role_id"] if row and "applications_management_role_id" in row.keys() else None
@@ -437,7 +537,7 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
             try:
                 await review_channel.send(
                     content=ping_content,
-                    embed=build_review_embed(interaction, fields, verification),
+                    embed=build_review_embed(interaction, fields, verification, app_id=app_id),
                     view=decision_view,
                     allowed_mentions=discord.AllowedMentions(roles=True, users=False, everyone=False)
                 )
@@ -448,91 +548,78 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
     else:
         logger.warning(f"Kanał przeglądu aplikacji nie jest skonfigurowany dla serwera {guild.id} — zgłoszenie NIE zostało nigdzie przekazane sztabowi.")
 
-    # Zapis do bazy danych aplikacji (dla panelu Web i archiwum)
-    forum_url = (verification or {}).get("profile_url") or ""
-    try:
-        await bot.db.execute(
-            """
-            INSERT INTO applications (
-                guild_id, user_id, nick, login, uid, age, why,
-                recommended_by, rules_agreed, fee_agreed, forum_url, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-            """,
-            (
-                guild.id,
-                author.id,
-                fields.get("Nick", ""),
-                fields.get("Login", ""),
-                fields.get("UID", ""),
-                fields.get("Wiek", ""),
-                fields.get("Dlaczego Team77? (Krótkie uzasadnienie)", ""),
-                "",
-                "tak",
-                "tak",
-                forum_url,
-            )
-        )
-    except Exception as e:
-        logger.error(f"Błąd zapisu aplikacji do bazy danych: {e}")
-
     dm_sent = False
     try:
-        await author.send(embed=build_dm_embed(fields, guild))
+        await author.send(embed=build_dm_embed(fields, guild, app_id=app_id))
         dm_sent = True
     except (discord.Forbidden, discord.HTTPException):
         dm_sent = False
 
-    confirmation_text = "Twoje zgłoszenie do organizacji **Team77** zostało pomyślnie zapisane i przekazane do zarządu."
+    confirmation_text = f"Twoje zgłoszenie (#{app_id}) do organizacji **Team77** zostało pomyślnie zapisane i przekazane do zarządu."
     if not dm_sent:
         confirmation_text += "\n*(Nie mogłem wysłać Ci wiadomości prywatnej — sprawdź ustawienia prywatności serwera, jeśli chcesz otrzymywać kopię odpowiedzi na DM.)*"
     await interaction.followup.send(embed=success_embed("Aplikacja złożona", confirmation_text), ephemeral=True)
 
 
-class ApplicationModal(discord.ui.Modal, title="Rekrutacja — Organizacja Team77"):
-    """Jednoetapowy formularz rekrutacyjny Team77 (5 pól tekstowych)."""
+class ApplicationModal(discord.ui.Modal, title="Podanie do Organizacji Team77"):
+    """Jednoetapowy formularz rekrutacyjny Team77 — 5 pól dokładnie jak w preview_applications_new.html."""
 
-    nick = discord.ui.TextInput(
-        label="Nick",
+    nick_login = discord.ui.TextInput(
+        label="1. Nick oraz Login z gry:",
         style=discord.TextStyle.short,
-        placeholder="Twój aktualny nick na serwerze MTA",
+        placeholder="np. Kamil_Pro / kamilos",
         required=True,
-        max_length=32
-    )
-    login = discord.ui.TextInput(
-        label="Login",
-        style=discord.TextStyle.short,
-        placeholder="Dokładny login / nazwa konta z forum ProjectRPG",
-        required=True,
-        max_length=32
+        max_length=64
     )
     uid = discord.ui.TextInput(
-        label="UID",
+        label="2. Twój numer UID:",
         style=discord.TextStyle.short,
-        placeholder="Twój unikalny numer UID z gry (np. 12345)",
+        placeholder="np. 12492",
         required=True,
         max_length=20
     )
     wiek = discord.ui.TextInput(
-        label="Wiek",
+        label="3. Twój Wiek:",
         style=discord.TextStyle.short,
-        placeholder="Twój wiek (np. 18)",
+        placeholder="np. 18",
         required=True,
         max_length=10
     )
+    rp = discord.ui.TextInput(
+        label="4. Ilość Godzin / RP na ProjectRPG:",
+        style=discord.TextStyle.short,
+        placeholder="np. 480 godz. / 1420 RP",
+        required=True,
+        max_length=50
+    )
     dlaczego = discord.ui.TextInput(
-        label="Dlaczego Team77? (Krótkie uzasadnienie)",
+        label="5. Dlaczego Team77? (Krótkie uzasadnienie):",
         style=discord.TextStyle.paragraph,
-        placeholder="Napisz krótko, dlaczego akurat Team77 i co wnosisz do ekipy...",
+        placeholder="Szukam aktywnej i zgranej ekipy z dobrą atmosferą na serwerze.",
         required=True,
         max_length=500
     )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        raw_nick_login = str(self.nick_login).strip()
+        if "/" in raw_nick_login:
+            parts = [p.strip() for p in raw_nick_login.split("/", 1)]
+            nick = parts[0]
+            login = parts[1]
+        elif " " in raw_nick_login and not raw_nick_login.startswith("@"):
+            parts = [p.strip() for p in raw_nick_login.split(None, 1)]
+            nick = parts[0]
+            login = parts[1]
+        else:
+            nick = raw_nick_login
+            login = raw_nick_login
+
         fields = {
-            "Nick": str(self.nick).strip(),
-            "Login": str(self.login).strip(),
+            "Nick": nick,
+            "Login": login,
             "UID": str(self.uid).strip(),
             "Wiek": str(self.wiek).strip(),
+            "RP": str(self.rp).strip(),
             "Dlaczego Team77? (Krótkie uzasadnienie)": str(self.dlaczego).strip(),
         }
         await _process_application(interaction, fields)
@@ -547,25 +634,38 @@ class ApplicationModal(discord.ui.Modal, title="Rekrutacja — Organizacja Team7
 
 
 class ApplicationStartButton(discord.ui.View):
-    """Trwały przycisk 'Złóż aplikację' wysyłany na kanał zgłoszeń.
-
-    Zwykły persistent View (nie DynamicItem) wystarczy, bo custom_id jest stały —
-    przycisk nie koduje żadnych danych per-użytkownik (w przeciwieństwie do
-    ApplicationDecisionButton, który koduje akcję + ID zgłaszającego).
-    Rejestrowany w cog_load przez bot.add_view(ApplicationStartButton()).
-    """
+    """Trwały panel przycisków rekrutacyjnych wysyłany na kanał #rekrutacja,
+    zawierający 3 przyciski zgodnie z preview_applications_new.html."""
 
     def __init__(self) -> None:
         super().__init__(timeout=None)
 
     @discord.ui.button(
-        label="Złóż aplikację",
+        label="Złóż Podanie",
         emoji="📝",
-        style=discord.ButtonStyle.primary,
+        style=discord.ButtonStyle.success,
         custom_id=START_BUTTON_CUSTOM_ID
     )
     async def start(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
         await interaction.response.send_modal(ApplicationModal())
+
+    @discord.ui.button(
+        label="Sprawdź Moje Podanie",
+        emoji="📊",
+        style=discord.ButtonStyle.secondary,
+        custom_id=CHECK_STATUS_BUTTON_CUSTOM_ID
+    )
+    async def check_status(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _show_application_status(interaction)
+
+    @discord.ui.button(
+        label="Regulamin",
+        emoji="📜",
+        style=discord.ButtonStyle.secondary,
+        custom_id=RULES_BUTTON_CUSTOM_ID
+    )
+    async def rules(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        await _show_recruitment_rules(interaction)
 
 
 class ApplicationRejectModal(discord.ui.Modal, title="Odrzucenie Aplikacji"):
@@ -744,8 +844,11 @@ async def _handle_decision(
             except discord.HTTPException as e:
                 logger.error(f"Nie udało się zdjąć roli Rekrut po akceptacji aplikacji: {e}")
 
-        # Zmień nick zgłaszającego na ten podany w formularzu rekrutacyjnym.
-        raw_nick = _get_embed_field_value(original_embed, "Nick")
+        raw_nick = None
+        if original_embed.title and "Podanie Kandydata: " in original_embed.title:
+            raw_nick = original_embed.title.split("Podanie Kandydata: ", 1)[1].strip()
+        if not raw_nick:
+            raw_nick = _get_embed_field_value(original_embed, "Nick")
         if raw_nick and raw_nick != "*brak odpowiedzi*":
             new_nick = raw_nick[:32]
             try:

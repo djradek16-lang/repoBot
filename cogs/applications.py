@@ -79,7 +79,7 @@ class ApplicationsCog(commands.Cog):
             """
         )
 
-        for col in ("why", "nick", "login", "uid", "age", "forum_url"):
+        for col in ("why", "nick", "login", "uid", "age", "rp_points", "forum_url"):
             try:
                 await self.bot.db.execute(f"ALTER TABLE applications ADD COLUMN {col} TEXT")
             except Exception:
