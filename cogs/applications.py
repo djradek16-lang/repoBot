@@ -63,6 +63,7 @@ class ApplicationsCog(commands.Cog):
                 login TEXT,
                 uid TEXT,
                 age TEXT,
+                why TEXT,
                 rp_points TEXT,
                 recommended_by TEXT,
                 rules_agreed TEXT,
@@ -77,6 +78,12 @@ class ApplicationsCog(commands.Cog):
             );
             """
         )
+
+        for col in ("why", "nick", "login", "uid", "age", "forum_url"):
+            try:
+                await self.bot.db.execute(f"ALTER TABLE applications ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
 
         # Rejestracja trwałych widoków (przetrwają restart bota):
         # - przycisk startowy formularza (statyczny custom_id, zwykły persistent View),
@@ -327,7 +334,7 @@ class ApplicationsCog(commands.Cog):
             date_str = str(r["created_at"]).split()[0] if r["created_at"] else "-"
             embed.add_field(
                 name=f"{st_emoji} #{r['id']} • {nick}",
-                value=f"UID: `{r['uid'] or '-'}` | Wiek: `{r['age'] or '-'} lat` | RP: `{r['rp_points'] or '0'}`\nData: `{date_str}` | Discord: <@{r['user_id']}>",
+                value=f"UID: `{r['uid'] or '-'}` | Wiek: `{r['age'] or '-'} lat`\nData: `{date_str}` | Discord: <@{r['user_id']}>",
                 inline=False
             )
 

@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisBot — Nowy System Rekrutacji i Aplikacji 2.0</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-darkest: #0e1013;
+      --bg-darker: #1a1c20;
+      --bg-chat: #313338;
+      --bg-card: #2b2d31;
+      --bg-hover: #35373c;
+      --bg-input: #1e1f22;
+      --text-normal: #dbdee1;
+      --text-muted: #949ba4;
+      --text-header: #f2f3f5;
+      --text-link: #00a8fc;
+      --brand: #5865f2;
+      --brand-hover: #4752c4;
+      --emerald: #23a55a;
+      --emerald-glow: rgba(35, 165, 90, 0.35);
+      --amber: #f39c12;
+      --danger: #f23f43;
+      --cyan: #00e5ff;
+      --gold: #f1c40f;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --font-main: "Inter", "gg sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-heading: "Outfit", sans-serif;
+      --font-mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 10% 20%, #111e2e 0%, #0c0f14 50%, #07090c 100%);
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      padding: 24px 20px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .wrapper {
+      width: 100%;
+      max-width: 1120px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* NAGŁÓWEK GŁÓWNY */
+    .header-banner {
+      background: linear-gradient(135deg, rgba(35, 165, 90, 0.12) 0%, rgba(88, 101, 242, 0.14) 100%);
+      border: 1px solid rgba(35, 165, 90, 0.3);
+      border-radius: 14px;
+      padding: 22px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .header-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, rgba(35, 165, 90, 0.25) 0%, rgba(0, 229, 255, 0.25) 100%);
+      border: 1px solid rgba(35, 165, 90, 0.4);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      box-shadow: 0 0 20px var(--emerald-glow);
+    }
+
+    .header-title-block h1 {
+      font-family: var(--font-heading);
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title-block p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .badge-pill {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(35, 165, 90, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(35, 165, 90, 0.3);
+    }
+
+    /* TABS */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      background: var(--bg-card);
+      padding: 8px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      flex: 1;
+      min-width: 170px;
+      padding: 12px 16px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--font-main);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-normal);
+    }
+
+    .tab-btn.active {
+      background: rgba(35, 165, 90, 0.14);
+      border-color: rgba(35, 165, 90, 0.4);
+      color: #fff;
+      box-shadow: 0 2px 10px rgba(35, 165, 90, 0.15);
+    }
+
+    .tab-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-btn.active .tab-badge {
+      background: var(--emerald);
+      color: #0b1a10;
+      font-weight: 700;
+    }
+
+    /* CONTROL PANEL */
+    .controls-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 18px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .controls-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+    }
+
+    .control-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .control-input, .control-select {
+      background: var(--bg-input);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      font-size: 13px;
+      outline: none;
+    }
+
+    .control-input:focus, .control-select:focus {
+      border-color: var(--emerald);
+    }
+
+    /* DISCORD SIMULATOR */
+    .discord-window {
+      background: var(--bg-chat);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    .discord-channel-bar {
+      background: #2b2d31;
+      padding: 12px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.25);
+    }
+
+    .channel-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .channel-hash {
+      color: #80848e;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .channel-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: #f2f3f5;
+    }
+
+    .channel-topic {
+      font-size: 12.5px;
+      color: #949ba4;
+      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      padding-left: 10px;
+      margin-left: 4px;
+    }
+
+    .discord-chat {
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 480px;
+    }
+
+    .discord-message {
+      display: flex;
+      gap: 16px;
+      position: relative;
+    }
+
+    .msg-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #23a55a 0%, #1e824c 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #fff;
+      font-size: 18px;
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .msg-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .msg-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .msg-author {
+      font-weight: 600;
+      font-size: 15px;
+      color: #f2f3f5;
+    }
+
+    .bot-badge {
+      background: #5865f2;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .msg-timestamp {
+      font-size: 12px;
+      color: #949ba4;
+    }
+
+    /* EMBEDY DISCORDA */
+    .discord-embed {
+      background: #2b2d31;
+      border-left: 4px solid var(--emerald);
+      border-radius: 4px;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 640px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      position: relative;
+    }
+
+    .discord-embed.border-gold { border-left-color: var(--gold); }
+    .discord-embed.border-danger { border-left-color: var(--danger); }
+    .discord-embed.border-brand { border-left-color: var(--brand); }
+    .discord-embed.border-cyan { border-left-color: var(--cyan); }
+
+    .embed-author {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #f2f3f5;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .embed-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .embed-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #dbdee1;
+    }
+
+    .embed-fields {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .embed-fields.cols-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .embed-field-full {
+      grid-column: 1 / -1;
+    }
+
+    .embed-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .field-name {
+      font-size: 11px;
+      font-weight: 700;
+      color: #949ba4;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .field-value {
+      font-size: 13.5px;
+      color: #dbdee1;
+      line-height: 1.4;
+    }
+
+    .field-value b, .field-value strong {
+      color: #ffffff;
+    }
+
+    .embed-footer {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #949ba4;
+      margin-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 8px;
+    }
+
+    .footer-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #949ba4;
+    }
+
+    /* PRZYCISKI KOMPONENTÓW DISCORDA */
+    .embed-components {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .discord-btn {
+      background: #4e5058;
+      border: none;
+      color: #fff;
+      font-family: var(--font-main);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .discord-btn:hover { background: #6d6f78; }
+    .discord-btn:active { transform: scale(0.98); }
+
+    .discord-btn.primary { background: #5865f2; }
+    .discord-btn.primary:hover { background: #4752c4; }
+
+    .discord-btn.success { background: #248046; }
+    .discord-btn.success:hover { background: #1a6334; }
+
+    .discord-btn.danger { background: #da373c; }
+    .discord-btn.danger:hover { background: #a1282c; }
+
+    .discord-btn.secondary { background: #3b3e45; }
+
+    /* FLOATING MODAL SIMULATOR */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 20px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .discord-modal-box {
+      background: #313338;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: modalPop 0.2s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 18px 20px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: #949ba4;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 10px 20px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .modal-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .modal-field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #b5bac1;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .modal-field input, .modal-field textarea {
+      background: #1e1f22;
+      border: 1px solid rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      padding: 10px 12px;
+      color: #dbdee1;
+      font-family: var(--font-main);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .modal-field input:focus, .modal-field textarea:focus {
+      border-color: #5865f2;
+    }
+
+    .modal-footer {
+      background: #2b2d31;
+      padding: 14px 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* BADGE AUDYTU FORUM */
+    .forum-audit-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: rgba(0, 229, 255, 0.08);
+      border: 1px solid rgba(0, 229, 255, 0.25);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .audit-tag {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .audit-clean { background: rgba(35, 165, 90, 0.2); color: #23a55a; border: 1px solid #23a55a; }
+    .audit-warn { background: rgba(243, 156, 18, 0.2); color: #f39c12; border: 1px solid #f39c12; }
+
+    /* CECHY NOWEGO SYSTEMU */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 14px;
+    }
+
+    .doc-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .doc-title {
+      font-weight: 700;
+      color: var(--emerald);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .doc-text {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+
+    <!-- NAGŁÓWEK GŁÓWNY -->
+    <div class="header-banner">
+      <div class="header-left">
+        <div class="header-icon">📋</div>
+        <div class="header-title-block">
+          <h1>Nowy System Rekrutacji 2.0 <span class="badge-pill">Aegis Recruitment Engine</span></h1>
+          <p>Kompleksowy moduł podań: panel rekrutacyjny, modal GUI z walidacją, auto-audyt forum i powiadomienia DM</p>
+        </div>
+      </div>
+      <div>
+        <span class="badge-pill" style="background: rgba(35, 165, 90, 0.15); color: #23a55a;">● Wersja Projektowa • Gotowa do Testów</span>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tab-start" onclick="switchView('start')">
+        <span>📢 Kanał Rekrutacji</span>
+        <span class="tab-badge">#rekrutacja</span>
+      </button>
+      <button class="tab-btn" id="tab-review" onclick="switchView('review')">
+        <span>🛡️ Panel Zarządu</span>
+        <span class="tab-badge">#przegląd-podań</span>
+      </button>
+      <button class="tab-btn" id="tab-dm" onclick="switchView('dm')">
+        <span>💬 Powiadomienie DM</span>
+        <span class="tab-badge">Wiadomość Prywatna</span>
+      </button>
+      <button class="tab-btn" id="tab-status" onclick="switchView('status')">
+        <span>📊 Sprawdzenie Statusu</span>
+        <span class="tab-badge">Dla Gracza</span>
+      </button>
+    </div>
+
+    <!-- PANEL KONTROLNY TESTOWANIA -->
+    <div class="controls-panel">
+      <div class="controls-header">
+        <span>⚙️ Interaktywny Symulator Kandydata</span>
+        <span style="color: var(--emerald); font-weight: 600;">Automatyczne odświeżanie podglądu</span>
+      </div>
+      <div class="controls-grid">
+        <div class="control-item">
+          <label class="control-label" for="inpNick">Nick kandydata:</label>
+          <input type="text" id="inpNick" class="control-input" value="Kamil_Pro" oninput="renderCurrent()">
+        </div>
+        <div class="control-item">
+          <label class="control-label" for="inpUID">UID w grze:</label>
+          <input type="text" id="inpUID" class="control-input" value="12492" oninput="renderCurrent()">
+        </div>
+        <div class="control-item">
+          <label class="control-label" for="inpAge">Wiek:</label>
+          <input type="number" id="inpAge" class="control-input" value="18" min="13" max="50" oninput="renderCurrent()">
+        </div>
+        <div class="control-item">
+          <label class="control-label" for="inpRP">Godziny / RP na serwerze:</label>
+          <input type="text" id="inpRP" class="control-input" value="480 godz. / 1420 RP" oninput="renderCurrent()">
+        </div>
+        <div class="control-item">
+          <label class="control-label" for="selAudit">Kary na Forum ProjectRPG:</label>
+          <select id="selAudit" class="control-select" onchange="renderCurrent()">
+            <option value="clean" selected>🟢 Czysta kartoteka (0 kar)</option>
+            <option value="warn">🟡 1 wyciszenie w historii</option>
+            <option value="banned">🔴 Aktywny ban na forum</option>
+          </select>
+        </div>
+        <div class="control-item">
+          <label class="control-label" for="selDecision">Stan Podania (Decyzja Zarządu):</label>
+          <select id="selDecision" class="control-select" onchange="renderCurrent()">
+            <option value="pending" selected>⏳ Oczekuje na decyzję zarządu</option>
+            <option value="accepted">✅ Zaakceptowane (Rola nadana)</option>
+            <option value="rejected">❌ Odrzucone (Z podaniem powodu)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- OKNO DISCORDA -->
+    <div class="discord-window">
+      <!-- Pasek kanału -->
+      <div class="discord-channel-bar">
+        <div class="channel-left">
+          <span class="channel-hash">#</span>
+          <span class="channel-name" id="chanName">rekrutacja</span>
+          <span class="channel-topic" id="chanTopic">📜 Oficjalny punkt składania aplikacji do organizacji Team77</span>
+        </div>
+        <div style="font-size: 12px; color: #949ba4;">AegisBot v2.5 • System Rekrutacji</div>
+      </div>
+
+      <!-- Treść czatu -->
+      <div class="discord-chat" id="chatContent">
+        <!-- Renderowane przez JS -->
+      </div>
+
+      <!-- FLOATING MODAL SYMULATOR -->
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="discord-modal-box">
+          <div class="modal-header">
+            <span class="modal-title">Podanie do Organizacji Team77</span>
+            <button class="modal-close" onclick="closeModal()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="modal-field">
+              <label>1. Nick oraz Login z gry:</label>
+              <input type="text" id="mNick" value="Kamil_Pro / kamilos">
+            </div>
+            <div class="modal-field">
+              <label>2. Twój numer UID:</label>
+              <input type="text" id="mUID" value="12492">
+            </div>
+            <div class="modal-field">
+              <label>3. Twój Wiek:</label>
+              <input type="text" id="mAge" value="18">
+            </div>
+            <div class="modal-field">
+              <label>4. Ilość Godzin / RP na ProjectRPG:</label>
+              <input type="text" id="mRP" value="480 godz. / 1420 RP">
+            </div>
+            <div class="modal-field">
+              <label>5. Dlaczego Team77? (Krótkie uzasadnienie):</label>
+              <textarea rows="3" id="mWhy">Szukam aktywnej i zgranej ekipy z dobrą atmosferą na serwerze.</textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="discord-btn secondary" onclick="closeModal()">Anuluj</button>
+            <button class="discord-btn success" onclick="submitModal()">Wyślij Podanie</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DOKUMENTACJA USPRAWNIEŃ -->
+    <div class="docs-grid">
+      <div class="doc-card">
+        <div class="doc-title">🎯 1. Jeden Wygodny Modal</div>
+        <div class="doc-text">
+          Koniec z dzieleniem na "Część 1" i "Część 2" z klikaniem dodatkowych przycisków! Zoptymalizowany, jednoetapowy formularz zbiera wszystkie kluczowe dane w 30 sekund.
+        </div>
+      </div>
+      <div class="doc-card">
+        <div class="doc-title">🔍 2. Inteligentny Auto-Audyt Forum</div>
+        <div class="doc-text">
+          Bot natychmiast odpytuje forum ProjectRPG: sprawdza czy UID kandydata istnieje, czy nick się zgadza i czy kandydat nie ma aktywnych kar serwerowych przed decyzją zarządu.
+        </div>
+      </div>
+      <div class="doc-card">
+        <div class="doc-title">⚡ 3. Decyzje 1-Kliknięciem & Wiadomości DM</div>
+        <div class="doc-text">
+          Zarząd akceptuje lub odrzuca podanie bezpośrednio pod embedem. Bot automatycznie nadaje rolę Rekruta, wysyła oficjalne DM z instrukcją wpisowego i rejestruje wpis w bazie MySQL.
+        </div>
+      </div>
+      <div class="doc-card">
+        <div class="doc-title">🛡️ 4. Ochrona przed Ucieczką z Serwera</div>
+        <div class="doc-text">
+          Jeśli kandydat wyjdzie z Discorda w trakcie rozpatrywania podania, bot automatycznie oznacza podanie jako odrzucone z powodem <i>"Opuszczenie serwera"</i>, nie blokując kolejki.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let activeTab = 'start';
+
+    function switchView(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+
+      const chanName = document.getElementById('chanName');
+      const chanTopic = document.getElementById('chanTopic');
+
+      if (tab === 'start') {
+        chanName.innerText = 'rekrutacja';
+        chanTopic.innerText = '📜 Oficjalny punkt składania aplikacji do organizacji Team77';
+      } else if (tab === 'review') {
+        chanName.innerText = 'przegląd-podań';
+        chanTopic.innerText = '🛡️ Panel Zarządu • Weryfikacja zgłoszeń kandydatów';
+      } else if (tab === 'dm') {
+        chanName.innerText = 'Wiadomość Prywatna (DM)';
+        chanTopic.innerText = '💬 Powiadomienie bezpośrednie od bota do kandydata';
+      } else if (tab === 'status') {
+        chanName.innerText = 'moje-podanie';
+        chanTopic.innerText = '📊 Sprawdź aktualny status swojego podania w kolejce';
+      }
+
+      renderCurrent();
+    }
+
+    function openModal() {
+      document.getElementById('modalOverlay').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('active');
+    }
+
+    function submitModal() {
+      closeModal();
+      alert('🎉 Podanie zostało pomyślnie wysłane! Przełączam na podgląd panelu Zarządu.');
+      switchView('review');
+    }
+
+    function setDecision(state) {
+      document.getElementById('selDecision').value = state;
+      renderCurrent();
+    }
+
+    function renderCurrent() {
+      const nick = document.getElementById('inpNick').value || 'Kandydat';
+      const uid = document.getElementById('inpUID').value || '1234';
+      const age = document.getElementById('inpAge').value || '18';
+      const rp = document.getElementById('inpRP').value || '350 godz.';
+      const audit = document.getElementById('selAudit').value;
+      const decision = document.getElementById('selDecision').value;
+
+      const chat = document.getElementById('chatContent');
+
+      if (activeTab === 'start') {
+        renderStartTab(chat);
+      } else if (activeTab === 'review') {
+        renderReviewTab(chat, nick, uid, age, rp, audit, decision);
+      } else if (activeTab === 'dm') {
+        renderDmTab(chat, nick, decision);
+      } else if (activeTab === 'status') {
+        renderStatusTab(chat, nick, decision);
+      }
+    }
+
+    function renderStartTab(chat) {
+      chat.innerHTML = `
+        <div class="discord-message">
+          <div class="msg-avatar">TEAM</div>
+          <div class="msg-body">
+            <div class="msg-header">
+              <span class="msg-author">Team77</span>
+              <span class="bot-badge">BOT</span>
+              <span class="msg-timestamp">Dzisiaj o 16:15</span>
+            </div>
+
+            <div class="discord-embed" style="border-left-color: #23a55a;">
+              <div class="embed-author">
+                <span>🛡️ OFICJALNA REKRUTACJA • ORGANIZACJA TEAM77</span>
+              </div>
+              <div class="embed-title">
+                <span>Dołącz do Elitarnej Organizacji Team77!</span>
+              </div>
+              <div class="embed-desc">
+                Szukasz zgranej ekipy, luźnej atmosfery, cotygodniowych premii, bogatej floty pojazdów i wspólnych akcji na serwerze <b>ProjectRPG</b>?<br><br>
+                Złóż podanie za pomocą poniższego formularza! Nasz zarząd rozpatrzy Twoją aplikację zazwyczaj w ciągu <b>kilku godzin</b>.
+              </div>
+
+              <div class="embed-fields">
+                <div class="embed-field">
+                  <span class="field-name">📋 Wymagania Podstawowe</span>
+                  <span class="field-value">• Wiek: <b>15+ lat</b><br>• Sprawny mikrofon & Discord<br>• Kultura osobista</span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">🎮 Wymagania w Grze</span>
+                  <span class="field-value">• Min. <b>150 RP</b> na koncie<br>• Wpisowe: <b>3,000 PLN</b><br>• Brak aktywnych banów</span>
+                </div>
+              </div>
+
+              <div class="embed-footer">
+                <span>Kliknij przycisk poniżej, aby otworzyć bezpieczny formularz GUI</span>
+                <span class="footer-dot"></span>
+                <span>Team77 v2.5</span>
+              </div>
+            </div>
+
+            <!-- PRZYCISKI INTERAKTYWNE -->
+            <div class="embed-components">
+              <button class="discord-btn success" onclick="openModal()">📝 Złóż Podanie (Kliknij, aby przetestować)</button>
+              <button class="discord-btn secondary" onclick="switchView('status')">📊 Sprawdź Moje Podanie</button>
+              <button class="discord-btn secondary" onclick="alert('Regulamin: Szacunek, aktywność min. 3h/tydz., zgłaszanie nieobecności.')">📜 Regulamin</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderReviewTab(chat, nick, uid, age, rp, audit, decision) {
+      let auditBadge = '';
+      if (audit === 'clean') {
+        auditBadge = '<span class="audit-tag audit-clean">🟢 Czyste Konto Kar</span> • Profil zweryfikowany na forum';
+      } else if (audit === 'warn') {
+        auditBadge = '<span class="audit-tag audit-warn">🟡 1 Wyciszenie</span> • Wymagana weryfikacja zarządu';
+      } else {
+        auditBadge = '<span class="audit-tag" style="background: rgba(242,63,67,0.2); color: #f23f43; border: 1px solid #f23f43;">🔴 Aktywny Ban</span> • Ostrzeżenie dla zarządu';
+      }
+
+      let statusLine = '';
+      let borderClass = 'border-brand';
+      if (decision === 'pending') {
+        statusLine = '<b style="color: #f39c12;">⏳ OCZEKUJE NA DECYZJĘ ZARZĄDU</b>';
+      } else if (decision === 'accepted') {
+        statusLine = '<b style="color: #23a55a;">✅ ZAAKCEPTOWANE PRZEZ @leiz77 (Rola Rekruta nadana)</b>';
+        borderClass = 'border-emerald';
+      } else {
+        statusLine = '<b style="color: #f23f43;">❌ ODRZUCONE PRZEZ @leiz77 (Powód: Zbyt mało godzin)</b>';
+        borderClass = 'border-danger';
+      }
+
+      chat.innerHTML = `
+        <div class="discord-message">
+          <div class="msg-avatar">TEAM</div>
+          <div class="msg-body">
+            <div class="msg-header">
+              <span class="msg-author">Team77</span>
+              <span class="bot-badge">BOT</span>
+              <span class="msg-timestamp">Dzisiaj o 16:18</span>
+            </div>
+
+            <div class="discord-embed ${borderClass}">
+              <div class="embed-author">
+                <span>🛡️ PANEL ZARZĄDU • NOWE ZGŁOSZENIE #142</span>
+              </div>
+              <div class="embed-title">
+                <span>Podanie Kandydata: ${nick}</span>
+              </div>
+              <div class="embed-desc">
+                Kandydat złożył podanie do organizacji. Sprawdź poniższe dane i podejmij decyzję:
+              </div>
+
+              <!-- Pasek audytu forum -->
+              <div class="forum-audit-badge">
+                ${auditBadge}
+              </div>
+
+              <div class="embed-fields cols-3">
+                <div class="embed-field">
+                  <span class="field-name">🪪 Nick & Discord</span>
+                  <span class="field-value"><b>@${nick}</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">🆔 UID w grze</span>
+                  <span class="field-value"><b>${uid}</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">🎂 Wiek</span>
+                  <span class="field-value"><b>${age} lat</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">⏱️ Godziny / RP</span>
+                  <span class="field-value"><b>${rp}</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">💰 Wpisowe & Zasady</span>
+                  <span class="field-value"><b>✅ Zgoda (3k PLN)</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">🟢 Status na DC</span>
+                  <span class="field-value"><b style="color: #23a55a;">Obecny na serwerze</b></span>
+                </div>
+                <div class="embed-field embed-field-full" style="background: rgba(0,0,0,0.2); padding: 8px 10px; border-radius: 6px;">
+                  <span class="field-name">💬 Uzasadnienie kandydata</span>
+                  <span class="field-value"><i>"Szukam aktywnej i zgranej ekipy z dobrą atmosferą na serwerze."</i></span>
+                </div>
+                <div class="embed-field embed-field-full">
+                  <span class="field-name">📌 Aktualny Stan Decyzji</span>
+                  <span class="field-value">${statusLine}</span>
+                </div>
+              </div>
+
+              <div class="embed-footer">
+                <span>ID Zgłoszenia: APP-142 • Złożono dzisiaj o 16:18</span>
+                <span class="footer-dot"></span>
+                <span>Zarząd Team77</span>
+              </div>
+            </div>
+
+            <!-- PRZYCISKI DECYZJI -->
+            <div class="embed-components">
+              <button class="discord-btn success" onclick="setDecision('accepted')">✅ Zaakceptuj Kandydata</button>
+              <button class="discord-btn danger" onclick="setDecision('rejected')">❌ Odrzuć Podanie</button>
+              <button class="discord-btn secondary" onclick="alert('Przekierowanie do profilu ProjectRPG gracza UID: ' + ${uid})">🔍 Profil na Forum ProjectRPG</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDmTab(chat, nick, decision) {
+      if (decision === 'accepted') {
+        chat.innerHTML = `
+          <div class="discord-message">
+            <div class="msg-avatar">TEAM</div>
+            <div class="msg-body">
+              <div class="msg-header">
+                <span class="msg-author">Team77</span>
+                <span class="bot-badge">BOT</span>
+                <span class="msg-timestamp">Dzisiaj o 16:20</span>
+              </div>
+
+              <div class="discord-embed" style="border-left-color: #23a55a;">
+                <div class="embed-author">
+                  <span>🎉 GRATULACJE • TWOJE PODANIE ZOSTAŁO ZAAKCEPTOWANE!</span>
+                </div>
+                <div class="embed-title">
+                  <span>Witaj w Organizacji Team77, ${nick}!</span>
+                </div>
+                <div class="embed-desc">
+                  Z przyjemnością informujemy, że Twoje podanie do organizacji <b>Team77</b> zostało <b>pozytywnie rozpatrzone</b> przez Zarząd!<br><br>
+                  Otrzymałeś już rolę <b>Rekruta</b> na naszym serwerze Discord.
+                </div>
+
+                <div class="embed-fields">
+                  <div class="embed-field embed-field-full">
+                    <span class="field-name">📌 Co należy teraz zrobić?</span>
+                    <span class="field-value">
+                      1. Wejdź na kanał <b>#ogłoszenia-organizacji</b> i zapoznaj się z aktualnościami.<br>
+                      2. Skontaktuj się z Zarządem w grze lub na kanale <b>#wpisowe</b> w celu uiszczenia 3,000 PLN.<br>
+                      3. Pobierz role powiadomień i wejdź na nasz kanał głosowy!
+                    </span>
+                  </div>
+                </div>
+
+                <div class="embed-footer">
+                  <span>Do zobaczenia na serwerze! • Zarząd Team77</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (decision === 'rejected') {
+        chat.innerHTML = `
+          <div class="discord-message">
+            <div class="msg-avatar">TEAM</div>
+            <div class="msg-body">
+              <div class="msg-header">
+                <span class="msg-author">Team77</span>
+                <span class="bot-badge">BOT</span>
+                <span class="msg-timestamp">Dzisiaj o 16:20</span>
+              </div>
+
+              <div class="discord-embed" style="border-left-color: #f23f43;">
+                <div class="embed-author">
+                  <span>DECYZJA ZARZĄDU • REKRUTACJA TEAM77</span>
+                </div>
+                <div class="embed-title">
+                  <span>Twoje Podanie Zostało Odrzucone</span>
+                </div>
+                <div class="embed-desc">
+                  Dziękujemy za poświęcony czas i chęć dołączenia do naszej organizacji.<br>
+                  Niestety, Twoja aplikacja nie została zaakceptowana na obecną chwilę.
+                </div>
+
+                <div class="embed-fields">
+                  <div class="embed-field embed-field-full">
+                    <span class="field-name">❌ Powód Decyzji</span>
+                    <span class="field-value"><i>Zbyt mała ilość godzin na serwerze lub aktywne kary w kartotece.</i></span>
+                  </div>
+                  <div class="embed-field embed-field-full">
+                    <span class="field-name">⏳ Kolejna Próba</span>
+                    <span class="field-value">Możesz złożyć kolejne podanie za <b>7 dni</b> po poprawie aktywności.</span>
+                  </div>
+                </div>
+
+                <div class="embed-footer">
+                  <span>Życzymy powodzenia na serwerze! • Zarząd Team77</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        chat.innerHTML = `
+          <div class="discord-message">
+            <div class="msg-avatar">TEAM</div>
+            <div class="msg-body">
+              <div class="msg-header">
+                <span class="msg-author">Team77</span>
+                <span class="bot-badge">BOT</span>
+                <span class="msg-timestamp">Dzisiaj o 16:15</span>
+              </div>
+
+              <div class="discord-embed" style="border-left-color: #5865f2;">
+                <div class="embed-author">
+                  <span>POTWIERDZENIE ZŁOŻENIA PODANIA</span>
+                </div>
+                <div class="embed-title">
+                  <span>Aplikacja Przyjęta do Kolejki</span>
+                </div>
+                <div class="embed-desc">
+                  Hej <b>${nick}</b>! Twoje podanie zostało bezpiecznie zarejestrowane w naszym systemie pod numerem <b>#142</b>.<br><br>
+                  Zarząd otrzymał powiadomienie na kanale przeglądu. O decyzji powiadomimy Cię w kolejnej prywatnej wiadomości!
+                </div>
+
+                <div class="embed-footer">
+                  <span>Czas oczekiwania wynosi zazwyczaj od 1 do 12 godzin.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function renderStatusTab(chat, nick, decision) {
+      chat.innerHTML = `
+        <div class="discord-message">
+          <div class="msg-avatar">TEAM</div>
+          <div class="msg-body">
+            <div class="msg-header">
+              <span class="msg-author">Team77</span>
+              <span class="bot-badge">BOT</span>
+              <span class="msg-timestamp">Dzisiaj o 16:22</span>
+            </div>
+
+            <div class="discord-embed" style="border-left-color: #00e5ff;">
+              <div class="embed-author">
+                <span>STATUS APLIKACJI • AEGIS RECRUITMENT</span>
+              </div>
+              <div class="embed-title">
+                <span>Twoje Zgłoszenie: ${nick}</span>
+              </div>
+              <div class="embed-desc">
+                Informacje o Twoim ostatnim złożonym podaniu do organizacji:
+              </div>
+
+              <div class="embed-fields">
+                <div class="embed-field">
+                  <span class="field-name">🆔 Numer Zgłoszenia</span>
+                  <span class="field-value"><b>#142</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">📌 Aktualny Status</span>
+                  <span class="field-value"><b>${decision === 'pending' ? '⏳ W trakcie weryfikacji' : (decision === 'accepted' ? '✅ Zaakceptowane' : '❌ Odrzucone')}</b></span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">📅 Data Złożenia</span>
+                  <span class="field-value">Dzisiaj o 16:18</span>
+                </div>
+                <div class="embed-field">
+                  <span class="field-name">⏱️ Przewidywany Czas</span>
+                  <span class="field-value">~1-2 godziny</span>
+                </div>
+              </div>
+
+              <div class="embed-footer">
+                <span>Wiadomość widoczna tylko dla Ciebie (Ephemeral)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Inicjalizacja przy starcie
+    renderCurrent();
+  </script>
+</body>
+</html>

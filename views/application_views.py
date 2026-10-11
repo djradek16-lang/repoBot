@@ -1,26 +1,23 @@
 """
 Widoki modułu aplikacji rekrutacyjnych.
 
-Zgłoszenie składa się przez formularz GUI (Discord Modal), a nie przez wpisanie
-wzoru na czacie. Discord pozwala na maksymalnie 5 pól tekstowych w jednym
-modalu, a formularz ma ich 8, więc jest podzielony na dwa modale:
-ApplicationModalPart1 (Nick, Login, UID, Wiek, Ilość RP) -> po submit pokazuje
-się efemeryczna wiadomość z przyciskiem "Dalej" (ContinueToPart2View) ->
-dopiero kliknięcie TEGO przycisku otwiera ApplicationModalPart2 (Kto polecił,
-Regulamin, Wpisowe). Modal NIE jest otwierany bezpośrednio z on_submit
-poprzedniego modala — to znany, niestabilny wzorzec w discord.py, który potrafi
-skutkować błędem Discorda "400 — In type: Value must be one of {4, 5, 6, 7, 10,
-12}" (patrz Rapptz/discord.py#10010). Dopiero po drugim submicie zgłoszenie
-jest przetwarzane (weryfikacja forum, embed na kanał przeglądu, DM z
-potwierdzeniem). Wejściem do formularza jest trwały przycisk
-ApplicationStartButton, wysyłany na kanał zgłoszeń komendą /config post_button.
+Zgłoszenie składa się przez nowoczesny, jednoetapowy formularz GUI (Discord Modal).
+Formularz zawiera dokładnie 5 pól tekstowych:
+1. Nick
+2. Login
+3. UID
+4. Wiek
+5. Dlaczego Team77? (Krótkie uzasadnienie)
 
-Zawiera też trwałe przyciski (Dynamic Persistent Items) do akceptacji /
-odrzucenia aplikacji bezpośrednio pod embedem na kanale przeglądu.
-Custom ID koduje akcję oraz ID zgłaszającego (np. "app_decision:accept:123"),
-dzięki czemu przyciski działają poprawnie nawet po restarcie bota — nie
-trzeba trzymać osobnej tabeli w bazie danych ani ręcznie rejestrować każdej
-wiadomości.
+Brak wymogów ilości godzin/RP oraz brak sztywnych ograniczeń wiekowych.
+Formularz mieści się w pojedynczym oknie dialogowym Discord Modal (Discord dopuszcza
+maksymalnie 5 komponentów TextInput per Modal), co eliminuje konieczność dzielenia
+procesu na wiele etapów i zapewnia natychmiastowe oraz stabilne działanie.
+
+Wejściem do formularza jest trwały przycisk ApplicationStartButton, wysyłany na kanał
+zgłoszeń komendą /config post_button. Po wysłaniu zgłoszenia następuje automatyczna
+weryfikacja kandydata na forum ProjectRPG, po czym weryfikowane podanie wraz z
+przyciskami decyzyjnymi trafia na kanał przeglądu zarządu, a kandydat otrzymuje kopię na DM.
 """
 
 import logging
@@ -44,22 +41,16 @@ REQUIRED_LABELS: list[str] = [
     "Login",
     "UID",
     "Wiek",
-    "Ilość RP",
-    "Kto polecił Ci organizację?",
-    "Czy zapoznałaś/eś się z regulaminem i będziesz go przestrzegał/a?",
-    "Czy wyrażasz zgodę na wpłacenie wpisowego w wysokości 3000 PLN?",
+    "Dlaczego Team77? (Krótkie uzasadnienie)",
 ]
 
 # Krótsze, czytelne etykiety do wyświetlenia w embedzie.
 DISPLAY_LABELS: dict[str, str] = {
-    "Nick": "🪪 Nick",
-    "Login": "🔑 Login",
-    "UID": "🆔 UID",
-    "Wiek": "🎂 Wiek",
-    "Ilość RP": "⏱️ Ilość RP",
-    "Kto polecił Ci organizację?": "🤝 Polecił(a)",
-    "Czy zapoznałaś/eś się z regulaminem i będziesz go przestrzegał/a?": "📜 Regulamin",
-    "Czy wyrażasz zgodę na wpłacenie wpisowego w wysokości 3000 PLN?": "💰 Wpisowe (3000 PLN)",
+    "Nick": "🪪 1. Nick",
+    "Login": "🔑 2. Login",
+    "UID": "🆔 3. UID",
+    "Wiek": "🎂 4. Wiek",
+    "Dlaczego Team77? (Krótkie uzasadnienie)": "💬 5. Dlaczego Team77?",
 }
 
 # Znaki specjalne Discord Markdown, które mogą uruchomić formatowanie, gdy
@@ -230,10 +221,13 @@ async def _has_review_permission(interaction: discord.Interaction) -> bool:
 
 
 def _get_embed_field_value(embed: discord.Embed, display_name: str) -> Optional[str]:
-    """Zwraca wartość pola embedu o podanej nazwie wyświetlanej (np. '🪪 Nick'), albo None."""
+    """Zwraca wartość pola embedu o podanej nazwie wyświetlanej, albo None."""
     for field in embed.fields:
-        if field.name == display_name:
-            return field.value
+        if display_name.lower() in field.name.lower():
+            val = field.value.strip()
+            if val.startswith("`") and val.endswith("`") and len(val) >= 2:
+                val = val[1:-1]
+            return val
     return None
 
 
@@ -264,88 +258,92 @@ def _decided_embed(original: discord.Embed, action: str, decided_by: Any, reason
 
 
 def build_review_embed(interaction: discord.Interaction, fields: dict[str, str], verification: dict | None = None) -> discord.Embed:
-    embed_color = config.INFO_COLOR
-    if verification and verification["status"] in ("mismatch", "not_found"):
-        embed_color = config.WARNING_COLOR
+    embed_color = 0xF1C40F  # Złoty kolor Team77
+    if verification and verification.get("status") in ("mismatch", "not_found", "error"):
+        embed_color = 0xE67E22
+    elif verification and verification.get("status") == "match":
+        embed_color = 0x2ECC71
 
     author = interaction.user
     embed = discord.Embed(
-        title="📥 Nowa aplikacja rekrutacyjna",
-        description=f"👤 Zgłaszający: {author.mention}",
+        title="📥 Nowa aplikacja rekrutacyjna — Team77",
+        description=(
+            f"👤 **Kandydat:** {author.mention} (`{author.name}` • ID: `{author.id}`)\n"
+            f"📅 **Data złożenia:** <t:{int(discord.utils.utcnow().timestamp())}:F>"
+        ),
         color=embed_color,
         timestamp=discord.utils.utcnow()
     )
-    embed.set_author(name=f"{author} ({author.id})", icon_url=author.display_avatar.url)
+    embed.set_author(name=f"{author.display_name} ({author.id})", icon_url=author.display_avatar.url)
     embed.set_thumbnail(url=author.display_avatar.url)
 
-    for key in REQUIRED_LABELS:
-        embed.add_field(name=DISPLAY_LABELS[key], value=_field_display(fields.get(key, "")), inline=False)
+    # Pola podstawowe (Nick, Login, UID, Wiek) w układzie inline
+    inline_keys = ["Nick", "Login", "UID", "Wiek"]
+    for key in inline_keys:
+        val = _field_display(fields.get(key, ""))
+        embed.add_field(name=DISPLAY_LABELS.get(key, key), value=f"`{val}`", inline=True)
+
+    # Pole uzasadnienia (Dlaczego Team77) na pełną szerokość
+    why_key = "Dlaczego Team77? (Krótkie uzasadnienie)"
+    why_val = _field_display(fields.get(why_key, ""))
+    embed.add_field(
+        name=DISPLAY_LABELS.get(why_key, "💬 5. Dlaczego Team77?"),
+        value=f"> {why_val}" if why_val != "*brak odpowiedzi*" else "*brak odpowiedzi*",
+        inline=False
+    )
 
     if verification:
-        status = verification["status"]
+        status = verification.get("status", "unknown")
         provided_uid = fields.get("UID", "?")
         if status == "match":
-            v_text = f"✅ Zgadza się z forum (UID `{verification['forum_uid']}`)"
+            v_text = f"✅ Zgadza się z forum (UID `{verification.get('forum_uid')}`)"
         elif status == "mismatch":
-            v_text = f"⚠️ **NIEZGODNOŚĆ** — forum pokazuje UID `{verification['forum_uid']}`, w zgłoszeniu podano `{provided_uid}`"
+            v_text = f"⚠️ **NIEZGODNOŚĆ** — forum wskazuje UID `{verification.get('forum_uid')}`, w zgłoszeniu podano `{provided_uid}`"
         elif status == "not_found":
             safe_nick = _MARKDOWN_SPECIAL_RE.sub("\\1\u200b", fields.get("Nick", "") or "?")
-            v_text = f"❌ Nie znaleziono dokładnego profilu **{safe_nick}** na forum ProjectRPG (sprawdzono nick, login i UID) — sprawdź ręcznie"
+            v_text = f"❌ Nie znaleziono profilu **{safe_nick}** na forum ProjectRPG (sprawdzono Nick, Login, UID) — wymagana weryfikacja ręczna"
         elif status == "unknown":
-            v_text = "❔ Znaleziono profil, ale nie udało się odczytać UID ze strony — sprawdź ręcznie"
+            v_text = "❔ Znaleziono profil, ale nie udało się odczytać UID ze strony — wymagana weryfikacja ręczna"
         else:
-            v_text = "⏳ Weryfikacja nieudana (błąd/timeout połączenia z forum) — sprawdź ręcznie"
+            v_text = "⏳ Weryfikacja nieudana (błąd/timeout połączenia z forum) — wymagana weryfikacja ręczna"
 
         if verification.get("profile_url"):
-            link_label = "Otwórz profil forum" if status in ("match", "mismatch", "unknown") else "🔎 Szukaj na forum"
+            link_label = "🔗 Otwórz profil na forum ProjectRPG" if status in ("match", "mismatch", "unknown") else "🔎 Szukaj na forum"
             v_text += f"\n[{link_label}]({verification['profile_url']})"
 
         embed.add_field(name="🔎 Weryfikacja forum ProjectRPG", value=v_text, inline=False)
 
-    embed.set_footer(text="Zgłoszenie złożone przez formularz")
+    embed.set_footer(text="Team77 • System Rekrutacji • Wybierz akcję decyzyjną poniżej")
     return embed
 
 
 def build_dm_embed(fields: dict[str, str], guild: discord.Guild) -> discord.Embed:
     embed = discord.Embed(
-        title="✅ Twoja aplikacja została złożona",
-        description=f"Zgłoszenie na serwerze **{guild.name}** zostało zapisane i przekazane do zarządu organizacji. Poniżej kopia Twoich odpowiedzi:",
-        color=config.SUCCESS_COLOR,
+        title="📨 Twoja aplikacja do Team77 została złożona!",
+        description=(
+            f"Dziękujemy za złożenie podania do organizacji **Team77** na serwerze **{guild.name}**!\n"
+            "Zgłoszenie zostało pomyślnie zarejestrowane i przekazane do zarządu. "
+            "Poniżej znajduje się podsumowanie Twoich odpowiedzi:\n"
+        ),
+        color=0xF1C40F,
         timestamp=discord.utils.utcnow()
     )
-    for key in REQUIRED_LABELS:
-        embed.add_field(name=DISPLAY_LABELS[key], value=_field_display(fields.get(key, "")), inline=False)
 
-    if guild.icon:
-        embed.set_thumbnail(url=guild.icon.url)
-    embed.set_footer(text=config.FOOTER_TEXT)
-    return embed
+    for key in ["Nick", "Login", "UID", "Wiek"]:
+        embed.add_field(name=DISPLAY_LABELS.get(key, key), value=_field_display(fields.get(key, "")), inline=True)
 
-
-def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
-    """Buduje embed rekrutacyjny do wysłania komendą /config post_button na
-    kanał zgłoszeń, razem z trwałym przyciskiem ApplicationStartButton.
-    """
-    embed = discord.Embed(
-        title="🏆 REKRUTACJA — TEAM77",
-        description=(
-            "Dołącz do jednej z najlepszych organizacji na serwerze!\n\n"
-            "Nie szukamy ideałów — szukamy ludzi, którzy nie mają kija w tyłku, "
-            "ogarniają i dobrze się bawią. Jeśli to Ty, wypełnij formularz poniżej."
-        ),
-        color=config.INFO_COLOR
+    why_key = "Dlaczego Team77? (Krótkie uzasadnienie)"
+    embed.add_field(
+        name=DISPLAY_LABELS.get(why_key, "💬 5. Dlaczego Team77?"),
+        value=_field_display(fields.get(why_key, "")),
+        inline=False
     )
 
-    embed.add_field(name="\u200b", value="▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬", inline=False)
-
     embed.add_field(
-        name="⚠️ ZASADY",
+        name="📌 Co dalej?",
         value=(
-            "🔹 Upewnij się, że wszystkie podane dane są prawdziwe.\n"
-            "🔹 Prosimy o zapoznanie się z regulaminem przed złożeniem aplikacji.\n"
-            "🔹 W przypadku jakichś niedokładności skontaktujemy się z Tobą w wiadomości prywatnej.\n"
-            "  \n"
-            "⏳ Cierpliwości — widzimy, mamy oczy."
+            "Zarząd organizacji zapozna się z Twoim podaniem. Gdy tylko zapadnie decyzja, "
+            "otrzymasz powiadomienie w wiadomości prywatnej (DM). Prosimy o cierpliwość!"
         ),
         inline=False
     )
@@ -356,10 +354,62 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
     return embed
 
 
+def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
+    """Buduje embed rekrutacyjny do wysłania komendą /config post_button na
+    kanał zgłoszeń, razem z trwałym przyciskiem ApplicationStartButton.
+    """
+    embed = discord.Embed(
+        title="🏛️ REKRUTACJA — ORGANIZACJA TEAM77",
+        description=(
+            "Dołącz do elitarnej organizacji na serwerze ProjectRPG!\n\n"
+            "Szukamy aktywnych, dojrzałych i zgranych graczy, którzy chcą wspólnie budować potęgę Team77. "
+            "U nas liczy się dobra atmosfera, wzajemny szacunek i wspólna zabawa."
+        ),
+        color=0xF1C40F
+    )
+
+    embed.add_field(
+        name="✨ CO OFERUJEMY",
+        value=(
+            "🔹 Rozbudowaną flotę pojazdów organizacyjnych\n"
+            "🔹 Aktywny, zintegrowany zarząd i pomocną ekipę\n"
+            "🔹 Cotygodniowe premie, eventy i konkursy z nagrodami\n"
+            "🔹 Dostęp do rozbudowanego bota oraz panelu WWW"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📌 WYMAGANIA REKRUTACYJNE",
+        value=(
+            "🔹 Kultura osobista oraz szacunek do członków organizacji\n"
+            "🔹 Posiadanie sprawnego mikrofonu i obecność na Discordzie\n"
+            "🔹 Aktywność w grze oraz chęć integracji z zespołem\n"
+            "🔹 Gotowość do opłacenia wpisowego organizacyjnego (3 000 PLN)"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📝 PROCES APLIKACJI",
+        value=(
+            "1️⃣ Kliknij przycisk **Złóż aplikację** poniżej.\n"
+            "2️⃣ Wypełnij krótki formularz zgłoszeniowy (5 pytań).\n"
+            "3️⃣ Zarząd rozpatrzy Twoje zgłoszenie w kanale weryfikacji.\n"
+            "4️⃣ Otrzymasz natychmiastowe powiadomienie na DM o decyzji!"
+        ),
+        inline=False
+    )
+
+    if guild.icon:
+        embed.set_thumbnail(url=guild.icon.url)
+    embed.set_footer(text="Team77 • Rekrutacja • Kliknij przycisk poniżej, aby złożyć podanie")
+    return embed
+
+
 async def _process_application(interaction: discord.Interaction, fields: dict[str, str]) -> None:
-    """Przetwarza kompletne zgłoszenie (po submicie drugiego modala): weryfikuje na forum,
-    przekazuje na kanał przeglądu i wysyła potwierdzenie DM. Wywoływane z on_submit
-    ApplicationModalPart2."""
+    """Przetwarza kompletne zgłoszenie: weryfikuje na forum, przekazuje na kanał
+    przeglądu z przyciskami decyzyjnymi, zapisuje do bazy i wysyła potwierdzenie DM."""
     bot = interaction.client
     guild = interaction.guild
     author = interaction.user
@@ -404,7 +454,7 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
         await bot.db.execute(
             """
             INSERT INTO applications (
-                guild_id, user_id, nick, login, uid, age, rp_points,
+                guild_id, user_id, nick, login, uid, age, why,
                 recommended_by, rules_agreed, fee_agreed, forum_url, status
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             """,
@@ -415,10 +465,10 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
                 fields.get("Login", ""),
                 fields.get("UID", ""),
                 fields.get("Wiek", ""),
-                fields.get("Ilość RP", ""),
-                fields.get("Kto polecił Ci organizację?", ""),
-                fields.get("Czy zapoznałaś/eś się z regulaminem i będziesz go przestrzegał/a?", ""),
-                fields.get("Czy wyrażasz zgodę na wpłacenie wpisowego w wysokości 3000 PLN?", ""),
+                fields.get("Dlaczego Team77? (Krótkie uzasadnienie)", ""),
+                "",
+                "tak",
+                "tak",
                 forum_url,
             )
         )
@@ -432,58 +482,14 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
     except (discord.Forbidden, discord.HTTPException):
         dm_sent = False
 
-    confirmation_text = "Twoje zgłoszenie zostało zapisane i przekazane do zarządu organizacji do oceny."
+    confirmation_text = "Twoje zgłoszenie do organizacji **Team77** zostało pomyślnie zapisane i przekazane do zarządu."
     if not dm_sent:
         confirmation_text += "\n*(Nie mogłem wysłać Ci wiadomości prywatnej — sprawdź ustawienia prywatności serwera, jeśli chcesz otrzymywać kopię odpowiedzi na DM.)*"
     await interaction.followup.send(embed=success_embed("Aplikacja złożona", confirmation_text), ephemeral=True)
 
 
-class ApplicationModalPart2(discord.ui.Modal, title="Aplikacja rekrutacyjna — część 2/2"):
-    """Drugi krok formularza — otwierany automatycznie po submicie części 1."""
-
-    kto_polecil = discord.ui.TextInput(
-        label="Kto polecił Ci organizację?",
-        style=discord.TextStyle.short,
-        required=False,
-        max_length=100
-    )
-    regulamin = discord.ui.TextInput(
-        label="Zapoznałaś/eś się z regulaminem?",
-        style=discord.TextStyle.short,
-        placeholder="tak / nie",
-        required=True,
-        max_length=20
-    )
-    wpisowe = discord.ui.TextInput(
-        label="Zgoda na wpisowe 3000 PLN?",
-        style=discord.TextStyle.short,
-        placeholder="tak / nie",
-        required=True,
-        max_length=20
-    )
-
-    def __init__(self, part1_fields: dict[str, str]) -> None:
-        super().__init__()
-        self._part1_fields = part1_fields
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        fields = dict(self._part1_fields)
-        fields["Kto polecił Ci organizację?"] = str(self.kto_polecil)
-        fields["Czy zapoznałaś/eś się z regulaminem i będziesz go przestrzegał/a?"] = str(self.regulamin)
-        fields["Czy wyrażasz zgodę na wpłacenie wpisowego w wysokości 3000 PLN?"] = str(self.wpisowe)
-        await _process_application(interaction, fields)
-
-    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        logger.error(f"Błąd w części 2/2 formularza aplikacji: {error}")
-        if not interaction.response.is_done():
-            await interaction.response.send_message(
-                embed=error_embed("Błąd", "Wystąpił błąd podczas przetwarzania zgłoszenia. Spróbuj ponownie."),
-                ephemeral=True
-            )
-
-
-class ApplicationModalPart1(discord.ui.Modal, title="Aplikacja rekrutacyjna — część 1/2"):
-    """Pierwszy krok formularza — otwierany po kliknięciu przycisku 'Złóż aplikację'."""
+class ApplicationModal(discord.ui.Modal, title="Rekrutacja — Organizacja Team77"):
+    """Jednoetapowy formularz rekrutacyjny Team77 (5 pól tekstowych)."""
 
     nick = discord.ui.TextInput(
         label="Nick",
@@ -502,64 +508,42 @@ class ApplicationModalPart1(discord.ui.Modal, title="Aplikacja rekrutacyjna — 
     uid = discord.ui.TextInput(
         label="UID",
         style=discord.TextStyle.short,
-        placeholder="Twój numer UID z gry (np. 12345)",
+        placeholder="Twój unikalny numer UID z gry (np. 12345)",
         required=True,
         max_length=20
     )
-    wiek = discord.ui.TextInput(label="Wiek", style=discord.TextStyle.short, required=True, max_length=10)
-    ilosc_rp = discord.ui.TextInput(label="Ilość RP", style=discord.TextStyle.short, required=True, max_length=50)
+    wiek = discord.ui.TextInput(
+        label="Wiek",
+        style=discord.TextStyle.short,
+        placeholder="Twój wiek (np. 18)",
+        required=True,
+        max_length=10
+    )
+    dlaczego = discord.ui.TextInput(
+        label="Dlaczego Team77? (Krótkie uzasadnienie)",
+        style=discord.TextStyle.paragraph,
+        placeholder="Napisz krótko, dlaczego akurat Team77 i co wnosisz do ekipy...",
+        required=True,
+        max_length=500
+    )
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        part1_fields = {
-            "Nick": str(self.nick),
-            "Login": str(self.login),
-            "UID": str(self.uid),
-            "Wiek": str(self.wiek),
-            "Ilość RP": str(self.ilosc_rp),
+        fields = {
+            "Nick": str(self.nick).strip(),
+            "Login": str(self.login).strip(),
+            "UID": str(self.uid).strip(),
+            "Wiek": str(self.wiek).strip(),
+            "Dlaczego Team77? (Krótkie uzasadnienie)": str(self.dlaczego).strip(),
         }
-        # UWAGA: otwieranie drugiego modala BEZPOŚREDNIO z on_submit pierwszego
-        # (interaction.response.send_modal wewnątrz on_submit modala) potrafi
-        # skutkować błędem Discorda "400 Invalid Form Body — In type: Value must
-        # be one of {4, 5, 6, 7, 10, 12}" — to znany, niestabilny wzorzec w
-        # discord.py (modal-z-modala), patrz np. Rapptz/discord.py#10010.
-        # Dlatego zamiast tego pokazujemy krótką, efemeryczną wiadomość z
-        # przyciskiem "Dalej" — drugi modal otwiera się dopiero z kliknięcia
-        # TEGO przycisku (interakcja komponentu), co jest w pełni stabilne.
-        await interaction.response.send_message(
-            embed=info_embed(
-                "Część 1/2 zapisana",
-                "Kliknij przycisk poniżej, aby przejść do drugiej części formularza."
-            ),
-            view=ContinueToPart2View(part1_fields),
-            ephemeral=True
-        )
+        await _process_application(interaction, fields)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
-        logger.error(f"Błąd w części 1/2 formularza aplikacji: {error}")
+        logger.error(f"Błąd w formularzu aplikacji: {error}", exc_info=error)
         if not interaction.response.is_done():
             await interaction.response.send_message(
-                embed=error_embed("Błąd", "Wystąpił błąd podczas otwierania formularza. Spróbuj ponownie."),
+                embed=error_embed("Błąd", "Wystąpił błąd podczas wysyłania zgłoszenia. Spróbuj ponownie."),
                 ephemeral=True
             )
-
-
-class ContinueToPart2View(discord.ui.View):
-    """Pośredni przycisk 'Dalej' między częścią 1/2 a 2/2 formularza.
-
-    NIE jest to trwały widok (brak custom_id rejestrowanego po restarcie) —
-    dane części 1 trzymane są tylko w pamięci obiektu przez czas trwania
-    tej pojedynczej, efemerycznej wiadomości (timeout 300s wystarcza, bo to
-    tylko chwilowe przejście między dwoma krokami tego samego zgłoszenia).
-    """
-
-    def __init__(self, part1_fields: dict[str, str]) -> None:
-        super().__init__(timeout=300)
-        self._part1_fields = part1_fields
-
-    @discord.ui.button(label="Dalej — część 2/2", emoji="➡️", style=discord.ButtonStyle.primary)
-    async def continue_button(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(ApplicationModalPart2(self._part1_fields))
-        self.stop()
 
 
 class ApplicationStartButton(discord.ui.View):
@@ -581,7 +565,7 @@ class ApplicationStartButton(discord.ui.View):
         custom_id=START_BUTTON_CUSTOM_ID
     )
     async def start(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.send_modal(ApplicationModalPart1())
+        await interaction.response.send_modal(ApplicationModal())
 
 
 class ApplicationRejectModal(discord.ui.Modal, title="Odrzucenie Aplikacji"):
@@ -761,7 +745,7 @@ async def _handle_decision(
                 logger.error(f"Nie udało się zdjąć roli Rekrut po akceptacji aplikacji: {e}")
 
         # Zmień nick zgłaszającego na ten podany w formularzu rekrutacyjnym.
-        raw_nick = _get_embed_field_value(original_embed, "🪪 Nick")
+        raw_nick = _get_embed_field_value(original_embed, "Nick")
         if raw_nick and raw_nick != "*brak odpowiedzi*":
             new_nick = raw_nick[:32]
             try:

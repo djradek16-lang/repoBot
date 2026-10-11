@@ -803,6 +803,7 @@ class WebDashboardCog(commands.Cog, name="WebDashboardCog"):
                 "uid": r["uid"] or "",
                 "pid": r["uid"] or "",
                 "age": r["age"] or "",
+                "why": r["why"] if "why" in r.keys() and r["why"] else "",
                 "rp_points": r["rp_points"] or "",
                 "hours": r["rp_points"] or "",
                 "recommended_by": r["recommended_by"] or "",
