@@ -380,7 +380,7 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
     embed = discord.Embed(
         title="Dołącz do Elitarnej Organizacji Team77!",
         description=(
-            "Szukasz zgranej ekipy, luźnej atmosfery, cotygodniowych premii, bogatej floty pojazdów i wspólnych akcji na serwerze **ProjectRPG**?\n\n"
+            "Szukasz zgranej ekipy, luźnej atmosfery, bogatej floty pojazdów i wspólnych akcji na serwerze **ProjectRPG**?\n\n"
             "Złóż podanie za pomocą poniższego formularza! Nasz zarząd rozpatrzy Twoją aplikację zazwyczaj w ciągu **kilku godzin**."
         ),
         color=0x23A55A  # #23a55a
