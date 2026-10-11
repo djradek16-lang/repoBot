@@ -1130,9 +1130,9 @@ async def execute_application_decision_external(
             dm_embed.add_field(
                 name="📌 Co należy teraz zrobić?",
                 value=(
-                    "1. Wejdź na kanał **#ogłoszenia-organizacji** i zapoznaj się z aktualnościami.\n"
-                    "2. Skontaktuj się z Zarządem w grze lub na kanale **#wpisowe** w celu uiszczenia 3,000 PLN.\n"
-                    "3. Pobierz role powiadomień i wejdź na nasz kanał głosowy!"
+                    "1. Wejdź na kanał **#regulamin** i zapoznaj się z regulaminem.\n"
+                    "2. Odwiedź kanał **#wplaty-czlonkow** w celu uiszczenia 3,000 PLN.\n"
+                    "3. Życzymy miłego spędzania czasu w organizacji!"
                 ),
                 inline=False
             )
