@@ -81,7 +81,34 @@ class DiamondsCog(commands.Cog):
                 (guild_id, user_id, max(0, delta), delta)
             )
 
-        return await self._get_diamonds(guild_id, user_id)
+    async def _resolve_user_name(self, guild: discord.Guild | None, user_id: int) -> str:
+        """Zwraca czysty tekst nicku użytkownika bez oznaczania @."""
+        if guild:
+            member = guild.get_member(user_id)
+            if member:
+                return discord.utils.escape_markdown(member.display_name)
+
+            try:
+                member = await guild.fetch_member(user_id)
+                return discord.utils.escape_markdown(member.display_name)
+            except (discord.NotFound, discord.HTTPException):
+                pass
+
+            try:
+                row = await self.bot.db.fetchone(
+                    "SELECT display_name FROM member_names WHERE guild_id = ? AND user_id = ?",
+                    (guild.id, user_id)
+                )
+                if row and row.get("display_name"):
+                    return discord.utils.escape_markdown(row["display_name"])
+            except Exception:
+                pass
+
+        try:
+            user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
+            return discord.utils.escape_markdown(user.display_name or user.name)
+        except Exception:
+            return f"Użytkownik {user_id}"
 
     # ── Komendy publiczne ─────────────────────────────────────────────────────
 
@@ -152,14 +179,13 @@ class DiamondsCog(commands.Cog):
         total_server_diamonds = sum(row["diamonds"] for row in rows)
 
         for idx, row in enumerate(rows):
-            member = interaction.guild.get_member(row["user_id"]) if interaction.guild else None
-            user_label = member.mention if member else f"`ID: {row['user_id']}`"
+            user_nick = await self._resolve_user_name(interaction.guild, row["user_id"])
 
             if idx < 3:
                 prefix = medals[idx]
-                lines.append(f"{prefix} **#{idx + 1}** {user_label} — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
+                lines.append(f"{prefix} **#{idx + 1}** **{user_nick}** — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
             else:
-                lines.append(f"▫️ **#{idx + 1}** {user_label} — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
+                lines.append(f"▫️ **#{idx + 1}** {user_nick} — **{row['diamonds']:,} {DIAMOND_EMOJI}**")
 
         embed = create_embed(
             title=f"🏆 Top 10 Posiadaczy Diamentów — {guild_name}",
