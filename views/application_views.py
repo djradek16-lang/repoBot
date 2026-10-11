@@ -53,7 +53,7 @@ DISPLAY_LABELS: dict[str, str] = {
     "Login": "🔑 Login",
     "UID": "🆔 UID",
     "Wiek": "🎂 Wiek",
-    "RP": "⏱️ Godziny / RP",
+    "RP": "⏱️ RP",
     "Dlaczego Team77? (Krótkie uzasadnienie)": "💬 Uzasadnienie",
 }
 
@@ -384,12 +384,12 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
 
     embed.add_field(
         name="📋 Wymagania Podstawowe",
-        value="• Wiek: **15+ lat**\n• Sprawny mikrofon & Discord\n• Kultura osobista",
+        value="• Sprawny mikrofon & Discord\n• Kultura osobista",
         inline=True
     )
     embed.add_field(
         name="🎮 Wymagania w Grze",
-        value="• Min. **150 RP** na koncie\n• Wpisowe: **3,000 PLN**\n• Brak aktywnych banów",
+        value="• Wpisowe: **3,000 PLN**\n• Brak aktywnych banów",
         inline=True
     )
 
@@ -567,7 +567,7 @@ class ApplicationModal(discord.ui.Modal, title="Podanie do Organizacji Team77"):
     nick_login = discord.ui.TextInput(
         label="1. Nick oraz Login z gry:",
         style=discord.TextStyle.short,
-        placeholder="np. Kamil_Pro / kamilos",
+        placeholder="np. Nick / Login",
         required=True,
         max_length=64
     )
@@ -586,9 +586,9 @@ class ApplicationModal(discord.ui.Modal, title="Podanie do Organizacji Team77"):
         max_length=10
     )
     rp = discord.ui.TextInput(
-        label="4. Ilość Godzin / RP na ProjectRPG:",
+        label="4. Ilość reputacji:",
         style=discord.TextStyle.short,
-        placeholder="np. 480 godz. / 1420 RP",
+        placeholder="np. 1420 RP",
         required=True,
         max_length=50
     )
