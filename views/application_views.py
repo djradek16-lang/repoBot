@@ -374,7 +374,7 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
             "🔹 Rozbudowaną flotę pojazdów organizacyjnych\n"
             "🔹 Aktywny, zintegrowany zarząd i pomocną ekipę\n"
             "🔹 Cotygodniowe premie, eventy i konkursy z nagrodami\n"
-            "🔹 Dostęp do rozbudowanego bota oraz panelu WWW"
+            "🔹 Dostęp do rozbudowanego bota"
         ),
         inline=False
     )
@@ -768,34 +768,50 @@ async def _handle_decision(
     dm_sent = True
     try:
         if action == "accept":
-            dm_desc = (
-                f"Gratulacje! Twoja aplikacja do organizacji **{guild.name}** została **zaakceptowana**! 🎉"
+            c_nick = new_nick or applicant.display_name
+            dm_embed = discord.Embed(
+                title=f"Witaj w Organizacji Team77, {c_nick}!",
+                description=(
+                    f"Z przyjemnością informujemy, że Twoje podanie do organizacji **Team77** zostało "
+                    f"**pozytywnie rozpatrzone** przez Zarząd!\n\n"
+                    f"Otrzymałeś już rolę **Rekruta** na naszym serwerze Discord."
+                ),
+                color=0x23A55A
             )
-            if role_added:
-                if len(added_roles) == 1:
-                    dm_desc += "\nOtrzymałeś/aś odpowiednią rolę na serwerze."
-                else:
-                    dm_desc += "\nOtrzymałeś/aś odpowiednie role na serwerze."
-
-            dm_desc += (
-                "\n\n📌 **Co dalej?**\n"
-                "• Zapoznaj się dokładnie z **regulaminem organizacji** — jego znajomość i przestrzeganie jest obowiązkowe.\n"
-                "• Masz **24 godziny** na wpłacenie **Wpisowego** (3 000 PLN) na serwerze MTA.\n"
-                "• Po dokonaniu wpłaty udokumentuj ją na kanale wpłat komendą `/wplata zgloszenie`.\n\n"
-                "⚠️ Niedopełnienie powyższego w wyznaczonym czasie może skutkować cofnięciem decyzji o przyjęciu.\n\n"
-                "Jeśli masz jakiekolwiek pytania, śmiało napisz do zarządu organizacji. Witamy na pokładzie! 🤝"
+            dm_embed.set_author(name="🎉 GRATULACJE • TWOJE PODANIE ZOSTAŁO ZAAKCEPTOWANE!")
+            dm_embed.add_field(
+                name="📌 Co należy teraz zrobić?",
+                value=(
+                    "1. Wejdź na kanał **#ogłoszenia-organizacji** i zapoznaj się z aktualnościami.\n"
+                    "2. Skontaktuj się z Zarządem w grze lub na kanale **#wpisowe** w celu uiszczenia 3,000 PLN.\n"
+                    "3. Pobierz role powiadomień i wejdź na nasz kanał głosowy!"
+                ),
+                inline=False
             )
-
-            await applicant.send(embed=success_embed("Aplikacja Zaakceptowana", dm_desc))
+            dm_embed.set_footer(text="Do zobaczenia na serwerze! • Zarząd Team77")
+            await applicant.send(embed=dm_embed)
         else:
-            dm_desc = f"Twoja aplikacja do organizacji **{guild.name}** została **odrzucona**."
-            if reason:
-                dm_desc += f"\n\n📝 **Powód odrzucenia:**\n> {reason}"
-            dm_desc += "\n\nDziękujemy za poświęcony czas i życzymy powodzenia w dalszej rozgrywce na serwerze."
-            await applicant.send(embed=error_embed(
-                "Aplikacja Odrzucona",
-                dm_desc
-            ))
+            dm_embed = discord.Embed(
+                title="Twoje Podanie Zostało Odrzucone",
+                description=(
+                    "Dziękujemy za poświęcony czas i chęć dołączenia do naszej organizacji.\n"
+                    "Niestety, Twoja aplikacja nie została zaakceptowana na obecną chwilę."
+                ),
+                color=0xF23F43
+            )
+            dm_embed.set_author(name="DECYZJA ZARZĄDU • REKRUTACJA TEAM77")
+            dm_embed.add_field(
+                name="❌ Powód Decyzji",
+                value=f"*{reason or 'Zbyt mała ilość godzin na serwerze lub aktywne kary w kartotece.'}*",
+                inline=False
+            )
+            dm_embed.add_field(
+                name="⏳ Kolejna Próba",
+                value="Możesz złożyć kolejne podanie za **7 dni** po poprawie aktywności.",
+                inline=False
+            )
+            dm_embed.set_footer(text="Życzymy powodzenia na serwerze! • Zarząd Team77")
+            await applicant.send(embed=dm_embed)
     except (discord.Forbidden, discord.HTTPException):
         dm_sent = False
 
@@ -994,21 +1010,53 @@ async def execute_application_decision_external(
 
         # DM do kandydata
         try:
-            await applicant.send(
-                embed=success_embed(
-                    "Aplikacja Zaakceptowana! 🎉",
-                    f"Gratulacje! Twoja aplikacja do organizacji **{guild.name}** została zaakceptowana przez zarząd ({admin_name}) w panelu webowym organizacji."
-                )
+            dm_embed = discord.Embed(
+                title=f"Witaj w Organizacji Team77, {applicant.display_name}!",
+                description=(
+                    f"Z przyjemnością informujemy, że Twoje podanie do organizacji **{guild.name}** zostało "
+                    f"**pozytywnie rozpatrzone** przez Zarząd ({admin_name})!\n\n"
+                    f"Otrzymałeś już rolę **Rekruta** na naszym serwerze Discord."
+                ),
+                color=0x23A55A
             )
+            dm_embed.set_author(name="🎉 GRATULACJE • TWOJE PODANIE ZOSTAŁO ZAAKCEPTOWANE!")
+            dm_embed.add_field(
+                name="📌 Co należy teraz zrobić?",
+                value=(
+                    "1. Wejdź na kanał **#ogłoszenia-organizacji** i zapoznaj się z aktualnościami.\n"
+                    "2. Skontaktuj się z Zarządem w grze lub na kanale **#wpisowe** w celu uiszczenia 3,000 PLN.\n"
+                    "3. Pobierz role powiadomień i wejdź na nasz kanał głosowy!"
+                ),
+                inline=False
+            )
+            dm_embed.set_footer(text="Do zobaczenia na serwerze! • Zarząd Team77")
+            await applicant.send(embed=dm_embed)
         except Exception:
             pass
 
     elif action == "reject" and applicant and guild:
         try:
-            desc = f"Twoja aplikacja do organizacji **{guild.name}** została odrzucona przez zarząd ({admin_name})."
-            if reason:
-                desc += f"\n\n📝 **Powód:** {reason}"
-            await applicant.send(embed=error_embed("Aplikacja Odrzucona", desc))
+            dm_embed = discord.Embed(
+                title="Twoje Podanie Zostało Odrzucone",
+                description=(
+                    f"Dziękujemy za poświęcony czas i chęć dołączenia do naszej organizacji.\n"
+                    f"Niestety, Twoja aplikacja nie została zaakceptowana na obecną chwilę przez zarząd ({admin_name})."
+                ),
+                color=0xF23F43
+            )
+            dm_embed.set_author(name="DECYZJA ZARZĄDU • REKRUTACJA TEAM77")
+            dm_embed.add_field(
+                name="❌ Powód Decyzji",
+                value=f"*{reason or 'Zbyt mała ilość godzin na serwerze lub aktywne kary w kartotece.'}*",
+                inline=False
+            )
+            dm_embed.add_field(
+                name="⏳ Kolejna Próba",
+                value="Możesz złożyć kolejne podanie za **7 dni** po poprawie aktywności.",
+                inline=False
+            )
+            dm_embed.set_footer(text="Życzymy powodzenia na serwerze! • Zarząd Team77")
+            await applicant.send(embed=dm_embed)
         except Exception:
             pass
 
@@ -1034,7 +1082,7 @@ class ApplicationDecisionButton(
     discord.ui.DynamicItem[discord.ui.Button],
     template=CUSTOM_ID_TEMPLATE
 ):
-    """Trwały przycisk akcji rekrutacyjnej (Akceptuj, Odrzuć, Skaner MTA, Usuń)."""
+    """Trwały przycisk akcji rekrutacyjnej (Zaakceptuj Kandydata, Odrzuć Podanie, Profil na Forum, Usuń)."""
 
     def __init__(self, action: str, user_id: int) -> None:
         self.action = action
@@ -1042,15 +1090,15 @@ class ApplicationDecisionButton(
 
         if action == "accept":
             style = discord.ButtonStyle.success
-            label = "Akceptuj"
+            label = "Zaakceptuj Kandydata"
             emoji = "✅"
         elif action == "reject":
             style = discord.ButtonStyle.danger
-            label = "Odrzuć"
+            label = "Odrzuć Podanie"
             emoji = "❌"
         elif action == "lookup":
             style = discord.ButtonStyle.secondary
-            label = "Skaner MTA"
+            label = "Profil na Forum ProjectRPG"
             emoji = "🔍"
         elif action == "delete":
             style = discord.ButtonStyle.secondary
