@@ -331,7 +331,7 @@ def build_review_embed(
     embed.add_field(name="🪪 Nick & Login", value=nick_login_val, inline=True)
     embed.add_field(name="🆔 UID w grze", value=f"**{uid}**", inline=True)
     embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
-    embed.add_field(name="⏱️ Godziny / RP", value=f"**{rp}**", inline=True)
+    embed.add_field(name="⏱️ RP", value=f"**{rp}**", inline=True)
     embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k PLN)**", inline=True)
     embed.add_field(name="🟢 Status na DC", value="**Obecny na serwerze**", inline=True)
 
@@ -468,7 +468,7 @@ async def _show_recruitment_rules(interaction: discord.Interaction) -> None:
         description=(
             "• **Szacunek:** Wzajemny szacunek i kultura na kanałach głosowych oraz tekstowych.\n"
             "• **Aktywność:** Regularna aktywność przez 2 tygodnie i obecność na serwerze Discord.\n"
-            "• **Wpisowe:** Zgoda na uiszczenie jednorazowego wpisowego **3,000 PLN** na rzecz floty po przyjęciu.\n"
+            "• **Wpisowe:** Zgoda na uiszczenie jednorazowego wpisowego **3,000 PLN**.\n"
             "• **Flota Pojazdów:** Naprawianie i tankowanie (min. 90%) każdego odstawianego pojazdu do bazy.\n"
             "• **Zasady:** Całkowity zakaz działania na szkodę organizacji i wynoszenia informacji ze strefy wewnętrznej."
         ),
