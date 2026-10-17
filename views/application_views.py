@@ -332,7 +332,7 @@ def build_review_embed(
     embed.add_field(name="🆔 UID w grze", value=f"**{uid}**", inline=True)
     embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
     embed.add_field(name="⏱️ RP", value=f"**{rp}**", inline=True)
-    embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k PLN)**", inline=True)
+    embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k $)**", inline=True)
     embed.add_field(name="🟢 Status na DC", value="**Obecny na serwerze**", inline=True)
 
     # Uzasadnienie kandydata (pełna szerokość)
@@ -380,7 +380,7 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
     embed = discord.Embed(
         title="Dołącz do Elitarnej Organizacji Team77!",
         description=(
-            "Szukasz zgranej ekipy, luźnej atmosfery, cotygodniowych premii, bogatej floty pojazdów i wspólnych akcji na serwerze **ProjectRPG**?\n\n"
+            "Szukasz zgranej ekipy, luźnej atmosfery, bogatej floty pojazdów i wspólnych akcji na serwerze **ProjectRPG**?\n\n"
             "Złóż podanie za pomocą poniższego formularza! Nasz zarząd rozpatrzy Twoją aplikację zazwyczaj w ciągu **kilku godzin**."
         ),
         color=0x23A55A  # #23a55a
@@ -394,13 +394,13 @@ def build_recruitment_post_embed(guild: discord.Guild) -> discord.Embed:
     )
     embed.add_field(
         name="🎮 Wymagania w Grze",
-        value="• Wpisowe: **3,000 PLN**\n• Brak aktywnych banów",
+        value="• Wpisowe: **3,000 $**\n• Brak aktywnych banów",
         inline=True
     )
 
     if guild.icon:
         embed.set_thumbnail(url=guild.icon.url)
-    embed.set_footer(text="Kliknij przycisk poniżej, aby otworzyć bezpieczny formularz GUI • Team77 v2.5")
+    embed.set_footer(text="Kliknij przycisk poniżej, aby otworzyć formularz • Team77")
     return embed
 
 
