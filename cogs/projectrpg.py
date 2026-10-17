@@ -487,6 +487,148 @@ async def _fetch_server_players_bulk() -> Optional[list[dict]]:
         return None
 
 
+def _clean_mta_nick(name: Optional[str]) -> Optional[str]:
+    """Czyści i weryfikuje nick MTA, odrzucając wzmianki, identyfikatory i znaki specjalne."""
+    if not name:
+        return None
+    n = str(name).strip().strip('`"\'')
+    n = re.sub(r'^[\[\(][^\]\)]+[\]\)]\s*', '', n).strip()
+    n = re.sub(r'\s*[\[\(][^\]\)]+[\]\)]$', '', n).strip()
+    if not n or len(n) < 2 or len(n) > 30:
+        return None
+    if any(char in n for char in ('<', '>', '@', '#', '/', '\\', '{', '}', ';', ':')):
+        return None
+    if re.search(r'^[a-zA-Z0-9_\.\[\]\-]{2,30}$', n):
+        return n
+    return None
+
+
+async def _get_team77_roster(
+    db: Any = None,
+    guild: Optional[discord.Guild] = None
+) -> tuple[dict[str, dict], dict[str, str]]:
+    """Pobiera i sanitizuje pełny skład organizacji Team77 z bazy danych bota oraz ról Discorda.
+    Zwraca krotkę (roster, alias_to_canonical)."""
+    roster: dict[str, dict] = {}
+    alias_to_canonical: dict[str, str] = {}
+
+    if db is not None:
+        try:
+            apps = await db.fetchall("SELECT nick, login FROM applications WHERE status = 'accept'")
+            for a in apps:
+                cn = _clean_mta_nick(a.get("nick"))
+                cl = _clean_mta_nick(a.get("login"))
+                canonical = cn or cl
+                if not canonical:
+                    continue
+                key = canonical.lower()
+                entry = roster.setdefault(key, {"display_nick": canonical, "rank": "Członek", "aliases": set()})
+                if cn:
+                    entry["aliases"].add(cn.lower())
+                    alias_to_canonical[cn.lower()] = key
+                if cl:
+                    entry["aliases"].add(cl.lower())
+                    alias_to_canonical[cl.lower()] = key
+        except Exception as e:
+            logger.debug(f"Błąd odczytu applications dla /prpg organizacja: {e}")
+
+        try:
+            recruits = await db.fetchall("SELECT nick, login FROM recruit_entries")
+            for r in recruits:
+                cn = _clean_mta_nick(r.get("nick"))
+                cl = _clean_mta_nick(r.get("login"))
+                canonical = cn or cl
+                if not canonical:
+                    continue
+                key = canonical.lower()
+                entry = roster.setdefault(key, {"display_nick": canonical, "rank": "Członek", "aliases": set()})
+                if cn:
+                    entry["aliases"].add(cn.lower())
+                    alias_to_canonical[cn.lower()] = key
+                if cl:
+                    entry["aliases"].add(cl.lower())
+                    alias_to_canonical[cl.lower()] = key
+        except Exception as e:
+            logger.debug(f"Błąd odczytu recruit_entries dla /prpg organizacja: {e}")
+
+        try:
+            donations = await db.fetchall("SELECT nick, login FROM donations WHERE status = 'approved'")
+            for d in donations:
+                cn = _clean_mta_nick(d.get("nick"))
+                cl = _clean_mta_nick(d.get("login"))
+                canonical = cn or cl
+                if not canonical:
+                    continue
+                key = canonical.lower()
+                entry = roster.setdefault(key, {"display_nick": canonical, "rank": "Członek", "aliases": set()})
+                if cn:
+                    entry["aliases"].add(cn.lower())
+                    alias_to_canonical[cn.lower()] = key
+                if cl:
+                    entry["aliases"].add(cl.lower())
+                    alias_to_canonical[cl.lower()] = key
+        except Exception as e:
+            logger.debug(f"Błąd odczytu donations dla /prpg organizacja: {e}")
+
+        try:
+            pts = await db.fetchall("SELECT nick, current_rank FROM rank_points WHERE nick IS NOT NULL")
+            for p_row in pts:
+                cn = _clean_mta_nick(p_row.get("nick"))
+                if cn:
+                    key = cn.lower()
+                    if key in alias_to_canonical:
+                        canonical_key = alias_to_canonical[key]
+                        if p_row.get("current_rank"):
+                            roster[canonical_key]["rank"] = p_row["current_rank"]
+        except Exception:
+            pass
+
+    if guild is not None:
+        org_role_ids: set[int] = set()
+        if db is not None:
+            try:
+                cfg = await db.fetchone(
+                    "SELECT applications_accept_role_id, member_count_role_id FROM guild_config WHERE guild_id = ?",
+                    (str(guild.id),)
+                )
+                if cfg:
+                    if cfg.get("applications_accept_role_id"):
+                        org_role_ids.add(int(cfg["applications_accept_role_id"]))
+                    if cfg.get("member_count_role_id"):
+                        org_role_ids.add(int(cfg["member_count_role_id"]))
+                acc_roles = await db.fetchall(
+                    "SELECT role_id FROM application_accept_roles WHERE guild_id = ?",
+                    (str(guild.id),)
+                )
+                for ar in acc_roles:
+                    if ar.get("role_id"):
+                        org_role_ids.add(int(ar["role_id"]))
+                r_thresholds = await db.fetchall(
+                    "SELECT role_id FROM rank_thresholds WHERE guild_id = ?",
+                    (str(guild.id),)
+                )
+                for rt in r_thresholds:
+                    if rt.get("role_id"):
+                        org_role_ids.add(int(rt["role_id"]))
+            except Exception:
+                pass
+
+        if org_role_ids:
+            for member in guild.members:
+                if member.bot:
+                    continue
+                if any(r.id in org_role_ids for r in member.roles):
+                    for name_variant in (member.nick, member.display_name, member.name):
+                        cn = _clean_mta_nick(name_variant)
+                        if cn:
+                            key = cn.lower()
+                            if key not in alias_to_canonical:
+                                roster[key] = {"display_nick": cn, "rank": "Członek", "aliases": {key}}
+                                alias_to_canonical[key] = key
+
+    return roster, alias_to_canonical
+
+
 async def _count_online_players_in_organization(
     players: list[str],
     org_name: str,
@@ -502,6 +644,7 @@ async def _count_online_players_in_organization(
        (aplikacje / rekrutacja / rangi) oraz weryfikacji profilu forum z inteligentnym cache'em.
     """
     target = _normalize_org_name(org_name)
+    is_team77 = "77" in target or "team77" in target or target in ("team77", "team 77", "77", "")
     matched: list[str] = []
     matched_details: dict[str, str] = {}
 
@@ -521,10 +664,24 @@ async def _count_online_players_in_organization(
             org = _extract_org_field(entry)
             if org and target and target in _normalize_org_name(org):
                 matched.append(nick)
-                matched_details[nick] = ""
+                matched_details[nick] = "Członek"
+
+        online_members = [{"nick": n, "rank": matched_details.get(n, "Członek"), "online": True} for n in sorted(matched, key=str.lower)]
+        offline_members: list[dict] = []
+        if is_team77:
+            roster, _ = await _get_team77_roster(db=db, guild=guild)
+            matched_lowers = {n.lower() for n in matched}
+            for k, r_info in roster.items():
+                if not any(alias in matched_lowers for alias in r_info["aliases"]):
+                    offline_members.append({"nick": r_info["display_nick"], "rank": r_info.get("rank") or "Członek", "online": False})
+            offline_members.sort(key=lambda m: m["nick"].lower())
+
         return {
-            "matched": sorted(matched, key=str.lower),
+            "matched": [m["nick"] for m in online_members],
             "matched_details": matched_details,
+            "online_members": online_members,
+            "offline_members": offline_members,
+            "all_members": online_members + offline_members,
             "checked": checked,
             "errors": 0,
             "total": len(players),
@@ -548,15 +705,28 @@ async def _count_online_players_in_organization(
                     org = _extract_org_field(payload)
                     if org and target and target in _normalize_org_name(org):
                         matched.append(nick)
-                        matched_details[nick] = ""
+                        matched_details[nick] = "Członek"
                 except Exception as e:
                     errors += 1
                     logger.debug(f"[/prpg organizacja] Błąd zapytania do serwera dla '{nick}': {e}")
 
         await asyncio.gather(*(_check(p) for p in players))
+        online_members = [{"nick": n, "rank": matched_details.get(n, "Członek"), "online": True} for n in sorted(matched, key=str.lower)]
+        offline_members = []
+        if is_team77:
+            roster, _ = await _get_team77_roster(db=db, guild=guild)
+            matched_lowers = {n.lower() for n in matched}
+            for k, r_info in roster.items():
+                if not any(alias in matched_lowers for alias in r_info["aliases"]):
+                    offline_members.append({"nick": r_info["display_nick"], "rank": r_info.get("rank") or "Członek", "online": False})
+            offline_members.sort(key=lambda m: m["nick"].lower())
+
         return {
-            "matched": sorted(matched, key=str.lower),
+            "matched": [m["nick"] for m in online_members],
             "matched_details": matched_details,
+            "online_members": online_members,
+            "offline_members": offline_members,
+            "all_members": online_members + offline_members,
             "checked": checked,
             "errors": errors,
             "total": len(players),
@@ -564,96 +734,19 @@ async def _count_online_players_in_organization(
         }
 
     # --- Tryb autonomiczny: baza danych bota + Discord + forum ProjectRPG ---
-    is_team77 = "77" in target or "team77" in target or target in ("team77", "team 77", "77", "")
-    known_roster: dict[str, str] = {}  # nick_lower -> source_desc
-
+    roster: dict[str, dict] = {}
+    alias_to_canonical: dict[str, str] = {}
     if is_team77:
-        if db is not None:
-            try:
-                apps = await db.fetchall("SELECT nick, login FROM applications WHERE status = 'accept'")
-                for a in apps:
-                    if a.get("nick"):
-                        known_roster[a["nick"].strip().lower()] = "rekrutacja"
-                    if a.get("login"):
-                        known_roster[a["login"].strip().lower()] = "rekrutacja"
-            except Exception as e:
-                logger.debug(f"Błąd odczytu applications dla /prpg organizacja: {e}")
-
-            try:
-                recruits = await db.fetchall("SELECT nick, login FROM recruit_entries")
-                for r in recruits:
-                    if r.get("nick"):
-                        known_roster[r["nick"].strip().lower()] = "rekrutacja"
-                    if r.get("login"):
-                        known_roster[r["login"].strip().lower()] = "rekrutacja"
-            except Exception as e:
-                logger.debug(f"Błąd odczytu recruit_entries dla /prpg organizacja: {e}")
-
-            try:
-                members = await db.fetchall("SELECT display_name FROM member_names")
-                for m in members:
-                    if m.get("display_name"):
-                        known_roster[m["display_name"].strip().lower()] = "discord"
-            except Exception as e:
-                logger.debug(f"Błąd odczytu member_names dla /prpg organizacja: {e}")
-
-            try:
-                points = await db.fetchall("SELECT nick FROM rank_points WHERE nick IS NOT NULL")
-                for p_row in points:
-                    if p_row.get("nick"):
-                        known_roster[p_row["nick"].strip().lower()] = "staz"
-            except Exception:
-                pass
-
-        if guild is not None:
-            org_role_ids = set()
-            if db is not None:
-                try:
-                    cfg = await db.fetchone(
-                        "SELECT applications_accept_role_id, member_count_role_id FROM guild_config WHERE guild_id = ?",
-                        (str(guild.id),)
-                    )
-                    if cfg:
-                        if cfg.get("applications_accept_role_id"):
-                            org_role_ids.add(int(cfg["applications_accept_role_id"]))
-                        if cfg.get("member_count_role_id"):
-                            org_role_ids.add(int(cfg["member_count_role_id"]))
-                    acc_roles = await db.fetchall(
-                        "SELECT role_id FROM application_accept_roles WHERE guild_id = ?",
-                        (str(guild.id),)
-                    )
-                    for ar in acc_roles:
-                        if ar.get("role_id"):
-                            org_role_ids.add(int(ar["role_id"]))
-                    r_thresholds = await db.fetchall(
-                        "SELECT role_id FROM rank_thresholds WHERE guild_id = ?",
-                        (str(guild.id),)
-                    )
-                    for rt in r_thresholds:
-                        if rt.get("role_id"):
-                            org_role_ids.add(int(rt["role_id"]))
-                except Exception:
-                    pass
-
-            for member in guild.members:
-                if member.bot:
-                    continue
-                has_role = bool(org_role_ids and any(r.id in org_role_ids for r in member.roles))
-                if has_role or not org_role_ids:
-                    for name_variant in (member.nick, member.display_name, member.name, getattr(member, "global_name", None)):
-                        if name_variant:
-                            clean_name = re.sub(r"^[\[\(][^\]\)]+[\]\)]\s*", "", name_variant).strip()
-                            clean_name = re.sub(r"\s*[\[\(][^\]\)]+[\]\)]$", "", clean_name).strip()
-                            known_roster[name_variant.lower()] = "discord"
-                            if clean_name:
-                                known_roster[clean_name.lower()] = "discord"
+        roster, alias_to_canonical = await _get_team77_roster(db=db, guild=guild)
 
     candidates: list[str] = []
+    online_set = {p.lower() for p in players}
+
     for p in players:
         pl = p.lower()
         if is_team77:
             if (
-                pl in known_roster
+                pl in alias_to_canonical
                 or pl.endswith("77")
                 or re.search(r"(?i)(?:^|[\W_])(?:team)?77\b|77$", p)
                 or "[77]" in pl or "[team77]" in pl or "_77" in pl or "-77" in pl
@@ -670,6 +763,7 @@ async def _count_online_players_in_organization(
     errors = 0
     semaphore = asyncio.Semaphore(5)
     now = time.monotonic()
+    online_members_dict: dict[str, dict] = {}
 
     async def _verify_candidate(nick: str) -> None:
         nonlocal checked, errors
@@ -698,24 +792,55 @@ async def _count_online_players_in_organization(
                     logger.debug(f"[/prpg organizacja] Błąd weryfikacji forum dla '{nick}': {e}")
 
         norm_org = _normalize_org_name(org)
+        is_member = False
         if is_team77:
             if "team77" in norm_org or "77" in norm_org:
-                matched.append(nick)
-                matched_details[nick] = rank or "Członek"
-            elif not org and nick_key in known_roster:
-                matched.append(nick)
-                matched_details[nick] = rank or "Członek"
+                is_member = True
+            elif not org and nick_key in alias_to_canonical:
+                is_member = True
         else:
             if target and target in norm_org:
-                matched.append(nick)
-                matched_details[nick] = rank or "Członek"
+                is_member = True
+
+        if is_member:
+            canonical_key = alias_to_canonical.get(nick_key)
+            if not canonical_key and is_team77:
+                for r_key in roster:
+                    if len(r_key) >= 4 and (r_key in nick_key or (nick_key.endswith("77") and r_key in nick_key[:-2])):
+                        canonical_key = r_key
+                        break
+            canonical_key = canonical_key or nick_key
+            existing_rank = roster.get(canonical_key, {}).get("rank")
+            final_rank = rank or existing_rank or "Członek"
+            online_members_dict[canonical_key] = {
+                "nick": nick,
+                "rank": final_rank,
+                "online": True
+            }
 
     if candidates:
         await asyncio.gather(*(_verify_candidate(c) for c in candidates))
 
+    online_members = sorted(online_members_dict.values(), key=lambda m: m["nick"].lower())
+
+    offline_members: list[dict] = []
+    if is_team77:
+        for c_key, r_info in roster.items():
+            if c_key not in online_members_dict:
+                if not any(alias in online_set for alias in r_info["aliases"]):
+                    offline_members.append({
+                        "nick": r_info["display_nick"],
+                        "rank": r_info.get("rank") or "Członek",
+                        "online": False
+                    })
+        offline_members.sort(key=lambda m: m["nick"].lower())
+
     return {
-        "matched": sorted(matched, key=str.lower),
-        "matched_details": matched_details,
+        "matched": [m["nick"] for m in online_members],
+        "matched_details": {m["nick"]: m["rank"] for m in online_members},
+        "online_members": online_members,
+        "offline_members": offline_members,
+        "all_members": online_members + offline_members,
         "checked": checked,
         "candidates": len(candidates),
         "errors": errors,
@@ -2085,6 +2210,133 @@ class PlayerListPaginator(discord.ui.View):
         await interaction.edit_original_response(embed=self.build_embed(), view=self)
 
 
+class OrgMembersPaginator(discord.ui.View):
+    """Paginator listy członków organizacji: online (🟢) na początku, offline (🔴) potem."""
+
+    def __init__(
+        self,
+        org_name: str,
+        online_members: list[dict],
+        offline_members: list[dict],
+        total_server_online: int,
+        user_id: int,
+        source_label: str = "",
+        errors: int = 0
+    ) -> None:
+        super().__init__(timeout=120)
+        self.org_name = org_name
+        self.online_members = online_members
+        self.offline_members = offline_members
+        self.all_members = online_members + offline_members
+        self.total_server_online = total_server_online
+        self.user_id = user_id
+        self.source_label = source_label
+        self.errors = errors
+        self.page = 0
+        self.per_page = 20
+        self.max_pages = max(1, math.ceil(len(self.all_members) / self.per_page))
+        self.message: Optional[discord.Message] = None
+        self._update_buttons()
+
+    def _update_buttons(self) -> None:
+        self.prev_btn.disabled = (self.page == 0)
+        self.next_btn.disabled = (self.page >= self.max_pages - 1)
+        self.page_indicator.label = f"Strona {self.page + 1} / {self.max_pages}"
+
+    def build_embed(self) -> discord.Embed:
+        start = self.page * self.per_page
+        end = start + self.per_page
+        page_members = self.all_members[start:end]
+
+        embed = discord.Embed(
+            title=f"🏢  Organizacja: {self.org_name}",
+            color=discord.Color(0x5865F2)
+        )
+        embed.set_thumbnail(url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png")
+
+        online_count = len(self.online_members)
+        offline_count = len(self.offline_members)
+        total_count = len(self.all_members)
+
+        embed.description = (
+            f"```yaml\n"
+            f"Wszyscy członkowie : {total_count}\n"
+            f"🟢 Aktywnych online : {online_count}\n"
+            f"🔴 Niedostępnych    : {offline_count}\n"
+            f"Serwer ProjectRPG  : {self.total_server_online} graczy online\n"
+            f"```"
+        )
+
+        if page_members:
+            lines = []
+            for i, m in enumerate(page_members):
+                idx = start + i + 1
+                dot = "🟢" if m.get("online") else "🔴"
+                nick = m.get("nick", "Nieznany")
+                rank = m.get("rank")
+                if rank and rank.strip().lower() not in ("członek", "czlonek", ""):
+                    lines.append(f"`{idx:02d}.` {dot} **{nick}** *(⤷ {rank})*")
+                else:
+                    lines.append(f"`{idx:02d}.` {dot} **{nick}**")
+            embed.add_field(
+                name="📋 Lista Członków",
+                value="\n".join(lines),
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="📋 Lista Członków",
+                value="*Brak członków do wyświetlenia w tej organizacji.*",
+                inline=False
+            )
+
+        footer_parts = []
+        if self.max_pages > 1:
+            footer_parts.append(f"Strona {self.page + 1} z {self.max_pages}")
+        footer_parts.append("🟢 Online | 🔴 Offline")
+        if self.source_label:
+            footer_parts.append(f"Źródło: {self.source_label}")
+        if self.errors:
+            footer_parts.append(f"⚠️ {self.errors} błędów")
+
+        embed.set_footer(text=" • ".join(footer_parts))
+        return embed
+
+    @discord.ui.button(label="◀ Poprzednia", style=discord.ButtonStyle.primary, custom_id="org_prev")
+    async def prev_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ Ta paginacja należy do innego użytkownika.", ephemeral=True)
+            return
+        if self.page > 0:
+            self.page -= 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    @discord.ui.button(label="Strona 1 / 1", style=discord.ButtonStyle.secondary, disabled=True, custom_id="org_page")
+    async def page_indicator(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        pass
+
+    @discord.ui.button(label="Następna ▶", style=discord.ButtonStyle.primary, custom_id="org_next")
+    async def next_btn(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ Ta paginacja należy do innego użytkownika.", ephemeral=True)
+            return
+        if self.page < self.max_pages - 1:
+            self.page += 1
+            self._update_buttons()
+            await interaction.response.edit_message(embed=self.build_embed(), view=self)
+
+    async def on_timeout(self) -> None:
+        for child in self.children:
+            if isinstance(child, discord.ui.Button):
+                child.disabled = True
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except Exception:
+                pass
+
+
 class ProjectRPGCog(commands.Cog):
     """Komendy i narzędzia dedykowane dla graczy serwera MTA: ProjectRPG."""
 
@@ -2361,7 +2613,7 @@ class ProjectRPGCog(commands.Cog):
         msg = await interaction.followup.send(embed=paginator.build_embed(), view=paginator, wait=True)
         paginator.message = msg
 
-    @prpg_group.command(name="organizacja", description="Pokazuje, ilu graczy online aktualnie należy do danej organizacji (domyślnie Team77).")
+    @prpg_group.command(name="organizacja", description="Pokazuje listę graczy (aktywnych 🟢 i nieaktywnych 🔴) należących do danej organizacji (domyślnie Team77).")
     @app_commands.describe(nazwa="Nazwa organizacji do sprawdzenia (domyślnie: Team77)")
     async def prpg_organizacja(self, interaction: discord.Interaction, nazwa: Optional[str] = "Team77") -> None:
         await interaction.response.defer()
@@ -2385,51 +2637,26 @@ class ProjectRPGCog(commands.Cog):
 
         result = await _get_organization_count(players, nazwa, guild=interaction.guild, db=self.bot.db)
 
-        matched = result["matched"]
-        matched_details = result.get("matched_details", {})
-
-        embed = discord.Embed(
-            title=f"🏢 Organizacja: {nazwa}",
-            color=discord.Color(0x5865F2)
-        )
-        embed.set_thumbnail(url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png")
-        embed.description = (
-            f"```yaml\n"
-            f"Aktywnych online : {len(matched)}\n"
-            f"Serwer ProjectRPG: {result['total']} graczy online\n"
-            f"```"
-        )
-
-        if matched:
-            listing_lines = []
-            for i, n in enumerate(matched[:50]):
-                r = matched_details.get(n)
-                if r:
-                    listing_lines.append(f"`{i + 1:02d}.` **{n}** *(⤷ {r})*")
-                else:
-                    listing_lines.append(f"`{i + 1:02d}.` **{n}**")
-            listing = "\n".join(listing_lines)
-            embed.add_field(name="📋 Gracze online z tej organizacji", value=listing, inline=False)
-            if len(matched) > 50:
-                embed.add_field(name="\u200b", value=f"*...i {len(matched) - 50} więcej.*", inline=False)
-        else:
-            embed.add_field(
-                name="📋 Gracze online z tej organizacji",
-                value="*Brak graczy online z tej organizacji w tej chwili.*",
-                inline=False
-            )
-
         source_label = (
             "zbiorczy endpoint serwera" if result.get("source") == "bulk"
             else "endpoint serwera (per gracz)" if result.get("source") == "per_player"
             else "baza organizacji + forum ProjectRPG"
         )
-        footer = f"Źródło: {source_label} • Wynik cache'owany na {int(ORG_COUNT_CACHE_TTL)}s"
-        if result.get("errors"):
-            footer = f"⚠️ {result['errors']} błędów weryfikacji • {footer}"
-        embed.set_footer(text=footer)
 
-        await interaction.followup.send(embed=embed)
+        paginator = OrgMembersPaginator(
+            org_name=nazwa,
+            online_members=result.get("online_members", []),
+            offline_members=result.get("offline_members", []),
+            total_server_online=result.get("total", len(players)),
+            user_id=interaction.user.id,
+            source_label=source_label,
+            errors=result.get("errors", 0)
+        )
+
+        view = paginator if paginator.max_pages > 1 else None
+        msg = await interaction.followup.send(embed=paginator.build_embed(), view=view, wait=True)
+        if view:
+            paginator.message = msg
 
     async def _nick_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
         """Podpowiada nicki graczy aktualnie online w miarę wpisywania (z cache'a ASE)."""
