@@ -2611,12 +2611,6 @@ class ProjectRPGCog(commands.Cog):
 
         result = await _get_organization_count(players, nazwa, guild=interaction.guild, bot=self.bot, db=self.bot.db)
 
-        source_label = (
-            "rola Team77 na Discordzie" if result.get("source") == "discord_roles"
-            else "zbiorczy endpoint serwera" if result.get("source") == "bulk"
-            else "endpoint serwera (per gracz)" if result.get("source") == "per_player"
-            else "baza organizacji + forum ProjectRPG"
-        )
 
         paginator = OrgMembersPaginator(
             org_name=nazwa,
@@ -2624,7 +2618,6 @@ class ProjectRPGCog(commands.Cog):
             offline_members=result.get("offline_members", []),
             total_server_online=result.get("total", len(players)),
             user_id=interaction.user.id,
-            source_label=source_label,
             errors=result.get("errors", 0)
         )
 
