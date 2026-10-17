@@ -16,7 +16,7 @@ import json
 import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from typing import Optional
+from typing import Optional, Any
 import aiohttp
 import discord
 from discord import app_commands
@@ -297,6 +297,10 @@ ORG_COUNT_CACHE_TTL = 15.0  # sekundy
 # to być wyższe niż przy scrapowaniu forum — nie ma tu ryzyka Cloudflare/rate-limitów.
 ORG_COUNT_CONCURRENCY = 10
 
+# Cache przypisania gracza do organizacji i rangi z forum: nick.lower() -> {"org": str, "rank": str, "ts": float}
+_PLAYER_ORG_CACHE: dict = {}
+PLAYER_ORG_CACHE_TTL = 1800.0  # 30 minut
+
 # Cache pojedynczej instancji cloudscraper: rozwiązanie wyzwania JS Cloudflare trwa
 # realnie ok. 1-3 sekundy, więc tworzenie NOWEGO scrapera (i rozwiązywanie wyzwania od zera)
 # przy KAŻDYM pojedynczym zapytaniu — jak działało to poprzednio — niepotrzebnie spowalniało
@@ -483,19 +487,23 @@ async def _fetch_server_players_bulk() -> Optional[list[dict]]:
         return None
 
 
-async def _count_online_players_in_organization(players: list[str], org_name: str) -> dict:
+async def _count_online_players_in_organization(
+    players: list[str],
+    org_name: str,
+    guild: Optional[discord.Guild] = None,
+    db: Any = None
+) -> dict:
     """Sprawdza, ilu spośród PODANYCH (aktualnie online) graczy należy do danej organizacji.
 
-    Dane pochodzą WYŁĄCZNIE z własnego serwera gry (nigdy z forum) — dokładnie tak samo,
-    jak lista graczy w /prpg gracze bierze się z ASE. Preferowany jest jeden zbiorczy
-    request (SERVER_PLAYERS_API_URL); jeśli nie jest skonfigurowany, dane są pobierane
-    osobno dla każdego gracza z SERVER_API_URL (ten sam endpoint, co ID/ping w karcie gracza).
-
-    Zwraca słownik: {"matched": [nicki...], "checked": int, "errors": int, "total": int,
-    "source": "bulk" | "per_player" | "unavailable"}.
+    Priorytety źródeł:
+    1. Endpoint zbiorczy serwera (config.PRPG_SERVER_PLAYERS_API_URL), jeśli skonfigurowany.
+    2. Endpoint per-gracz serwera (config.PRPG_SERVER_API_URL), jeśli skonfigurowany.
+    3. Automatyczna synchronizacja członków organizacji na podstawie Discorda, bazy danych
+       (aplikacje / rekrutacja / rangi) oraz weryfikacji profilu forum z inteligentnym cache'em.
     """
     target = _normalize_org_name(org_name)
     matched: list[str] = []
+    matched_details: dict[str, str] = {}
 
     bulk_data = await _fetch_server_players_bulk()
     if bulk_data is not None:
@@ -507,59 +515,222 @@ async def _count_online_players_in_organization(players: list[str], org_name: st
             nick = _extract_nick_field(entry)
             if not nick:
                 continue
-            # Jeśli endpoint zwraca też graczy spoza aktualnej listy ASE, ograniczamy się
-            # tylko do faktycznie online (spójność z resztą komend /prpg).
             if online_set and nick.lower() not in online_set:
                 continue
             checked += 1
             org = _extract_org_field(entry)
             if org and target and target in _normalize_org_name(org):
                 matched.append(nick)
+                matched_details[nick] = ""
         return {
             "matched": sorted(matched, key=str.lower),
+            "matched_details": matched_details,
             "checked": checked,
             "errors": 0,
             "total": len(players),
             "source": "bulk",
         }
 
-    if not SERVER_API_URL:
+    if SERVER_API_URL:
+        semaphore = asyncio.Semaphore(ORG_COUNT_CONCURRENCY)
+        checked = 0
+        errors = 0
+
+        async def _check(nick: str) -> None:
+            nonlocal checked, errors
+            async with semaphore:
+                try:
+                    payload = await _fetch_server_player_extra(nick)
+                    if payload is None:
+                        errors += 1
+                        return
+                    checked += 1
+                    org = _extract_org_field(payload)
+                    if org and target and target in _normalize_org_name(org):
+                        matched.append(nick)
+                        matched_details[nick] = ""
+                except Exception as e:
+                    errors += 1
+                    logger.debug(f"[/prpg organizacja] Błąd zapytania do serwera dla '{nick}': {e}")
+
+        await asyncio.gather(*(_check(p) for p in players))
         return {
-            "matched": [], "checked": 0, "errors": 0, "total": len(players),
-            "source": "unavailable",
+            "matched": sorted(matched, key=str.lower),
+            "matched_details": matched_details,
+            "checked": checked,
+            "errors": errors,
+            "total": len(players),
+            "source": "per_player",
         }
 
-    semaphore = asyncio.Semaphore(ORG_COUNT_CONCURRENCY)
+    # --- Tryb autonomiczny: baza danych bota + Discord + forum ProjectRPG ---
+    is_team77 = "77" in target or "team77" in target or target in ("team77", "team 77", "77", "")
+    known_roster: dict[str, str] = {}  # nick_lower -> source_desc
+
+    if is_team77:
+        if db is not None:
+            try:
+                apps = await db.fetchall("SELECT nick, login FROM applications WHERE status = 'accept'")
+                for a in apps:
+                    if a.get("nick"):
+                        known_roster[a["nick"].strip().lower()] = "rekrutacja"
+                    if a.get("login"):
+                        known_roster[a["login"].strip().lower()] = "rekrutacja"
+            except Exception as e:
+                logger.debug(f"Błąd odczytu applications dla /prpg organizacja: {e}")
+
+            try:
+                recruits = await db.fetchall("SELECT nick, login FROM recruit_entries")
+                for r in recruits:
+                    if r.get("nick"):
+                        known_roster[r["nick"].strip().lower()] = "rekrutacja"
+                    if r.get("login"):
+                        known_roster[r["login"].strip().lower()] = "rekrutacja"
+            except Exception as e:
+                logger.debug(f"Błąd odczytu recruit_entries dla /prpg organizacja: {e}")
+
+            try:
+                members = await db.fetchall("SELECT display_name FROM member_names")
+                for m in members:
+                    if m.get("display_name"):
+                        known_roster[m["display_name"].strip().lower()] = "discord"
+            except Exception as e:
+                logger.debug(f"Błąd odczytu member_names dla /prpg organizacja: {e}")
+
+            try:
+                points = await db.fetchall("SELECT nick FROM rank_points WHERE nick IS NOT NULL")
+                for p_row in points:
+                    if p_row.get("nick"):
+                        known_roster[p_row["nick"].strip().lower()] = "staz"
+            except Exception:
+                pass
+
+        if guild is not None:
+            org_role_ids = set()
+            if db is not None:
+                try:
+                    cfg = await db.fetchone(
+                        "SELECT applications_accept_role_id, member_count_role_id FROM guild_config WHERE guild_id = ?",
+                        (str(guild.id),)
+                    )
+                    if cfg:
+                        if cfg.get("applications_accept_role_id"):
+                            org_role_ids.add(int(cfg["applications_accept_role_id"]))
+                        if cfg.get("member_count_role_id"):
+                            org_role_ids.add(int(cfg["member_count_role_id"]))
+                    acc_roles = await db.fetchall(
+                        "SELECT role_id FROM application_accept_roles WHERE guild_id = ?",
+                        (str(guild.id),)
+                    )
+                    for ar in acc_roles:
+                        if ar.get("role_id"):
+                            org_role_ids.add(int(ar["role_id"]))
+                    r_thresholds = await db.fetchall(
+                        "SELECT role_id FROM rank_thresholds WHERE guild_id = ?",
+                        (str(guild.id),)
+                    )
+                    for rt in r_thresholds:
+                        if rt.get("role_id"):
+                            org_role_ids.add(int(rt["role_id"]))
+                except Exception:
+                    pass
+
+            for member in guild.members:
+                if member.bot:
+                    continue
+                has_role = bool(org_role_ids and any(r.id in org_role_ids for r in member.roles))
+                if has_role or not org_role_ids:
+                    for name_variant in (member.nick, member.display_name, member.name, getattr(member, "global_name", None)):
+                        if name_variant:
+                            clean_name = re.sub(r"^[\[\(][^\]\)]+[\]\)]\s*", "", name_variant).strip()
+                            clean_name = re.sub(r"\s*[\[\(][^\]\)]+[\]\)]$", "", clean_name).strip()
+                            known_roster[name_variant.lower()] = "discord"
+                            if clean_name:
+                                known_roster[clean_name.lower()] = "discord"
+
+    candidates: list[str] = []
+    for p in players:
+        pl = p.lower()
+        if is_team77:
+            if (
+                pl in known_roster
+                or pl.endswith("77")
+                or re.search(r"(?i)(?:^|[\W_])(?:team)?77\b|77$", p)
+                or "[77]" in pl or "[team77]" in pl or "_77" in pl or "-77" in pl
+            ):
+                candidates.append(p)
+        else:
+            tag_pat = f"[{target}]"
+            if tag_pat in pl or f"({target})" in pl or pl.startswith(f"{target}_") or pl.endswith(f"_{target}") or target in pl:
+                candidates.append(p)
+            elif pl in _PLAYER_ORG_CACHE and target in _normalize_org_name(_PLAYER_ORG_CACHE[pl].get("org", "")):
+                candidates.append(p)
+
     checked = 0
     errors = 0
+    semaphore = asyncio.Semaphore(5)
+    now = time.monotonic()
 
-    async def _check(nick: str) -> None:
+    async def _verify_candidate(nick: str) -> None:
         nonlocal checked, errors
-        async with semaphore:
-            try:
-                payload = await _fetch_server_player_extra(nick)
-                if payload is None:
-                    errors += 1
-                    return
-                checked += 1
-                org = _extract_org_field(payload)
-                if org and target and target in _normalize_org_name(org):
-                    matched.append(nick)
-            except Exception as e:
-                errors += 1
-                logger.debug(f"[/prpg organizacja] Błąd zapytania do serwera dla '{nick}': {e}")
+        nick_key = nick.lower()
+        cached = _PLAYER_ORG_CACHE.get(nick_key)
+        org = ""
+        rank = ""
 
-    await asyncio.gather(*(_check(p) for p in players))
+        if cached is not None and (now - cached.get("ts", 0)) < PLAYER_ORG_CACHE_TTL:
+            org = cached.get("org", "")
+            rank = cached.get("rank", "")
+            checked += 1
+        else:
+            async with semaphore:
+                try:
+                    prof = await _find_forum_profile_url(nick, guarantee_link=False, cloudscraper_retry=False)
+                    if prof and prof.get("profile_url"):
+                        g_info = await _scrape_forum_game_info(prof["profile_url"])
+                        if g_info:
+                            org = (g_info.get("organizacja") or "").strip()
+                            rank = (g_info.get("ranga_organizacji") or g_info.get("ranga_frakcji") or "").strip()
+                    _PLAYER_ORG_CACHE[nick_key] = {"org": org, "rank": rank, "ts": now}
+                    checked += 1
+                except Exception as e:
+                    errors += 1
+                    logger.debug(f"[/prpg organizacja] Błąd weryfikacji forum dla '{nick}': {e}")
+
+        norm_org = _normalize_org_name(org)
+        if is_team77:
+            if "team77" in norm_org or "77" in norm_org:
+                matched.append(nick)
+                matched_details[nick] = rank or "Członek"
+            elif not org and nick_key in known_roster:
+                matched.append(nick)
+                matched_details[nick] = rank or "Członek"
+        else:
+            if target and target in norm_org:
+                matched.append(nick)
+                matched_details[nick] = rank or "Członek"
+
+    if candidates:
+        await asyncio.gather(*(_verify_candidate(c) for c in candidates))
+
     return {
         "matched": sorted(matched, key=str.lower),
+        "matched_details": matched_details,
         "checked": checked,
+        "candidates": len(candidates),
         "errors": errors,
         "total": len(players),
-        "source": "per_player",
+        "source": "roster",
     }
 
 
-async def _get_organization_count(players: list[str], org_name: str, force_refresh: bool = False) -> dict:
+async def _get_organization_count(
+    players: list[str],
+    org_name: str,
+    guild: Optional[discord.Guild] = None,
+    db: Any = None,
+    force_refresh: bool = False
+) -> dict:
     """Zwraca liczbę aktywnych graczy danej organizacji z cache'a (ORG_COUNT_CACHE_TTL) albo
     świeżo policzoną (i cache'owaną) przez _count_online_players_in_organization."""
     key = _normalize_org_name(org_name)
@@ -568,7 +739,7 @@ async def _get_organization_count(players: list[str], org_name: str, force_refre
     if not force_refresh and cached is not None and (now - cached["ts"]) < ORG_COUNT_CACHE_TTL:
         return cached["data"]
 
-    data = await _count_online_players_in_organization(players, org_name)
+    data = await _count_online_players_in_organization(players, org_name, guild=guild, db=db)
     _ORG_COUNT_CACHE[key] = {"data": data, "ts": now}
     return data
 
@@ -2212,22 +2383,10 @@ class ProjectRPGCog(commands.Cog):
             await interaction.followup.send(embed=embed)
             return
 
-        # Dane pochodzą wyłącznie z własnego serwera (SERVER_PLAYERS_API_URL/SERVER_API_URL),
-        # nigdy z forum — analogicznie do /prpg gracze, które też bierze listę wyłącznie z ASE.
-        result = await _get_organization_count(players, nazwa)
-
-        if result.get("source") == "unavailable":
-            embed = error_embed(
-                "🏢 Brak integracji z serwerem",
-                "Ta komenda potrzebuje endpointu HTTP własnego serwera zwracającego organizację gracza "
-                "(`config.PRPG_SERVER_PLAYERS_API_URL` — zbiorczo dla wszystkich graczy, zalecane — "
-                "albo `config.PRPG_SERVER_API_URL` per gracz). Obecnie żaden z nich nie jest skonfigurowany, "
-                "więc nie ma skąd pobrać danych o organizacji (nie korzystamy tu z forum)."
-            )
-            await interaction.followup.send(embed=embed)
-            return
+        result = await _get_organization_count(players, nazwa, guild=interaction.guild, db=self.bot.db)
 
         matched = result["matched"]
+        matched_details = result.get("matched_details", {})
 
         embed = discord.Embed(
             title=f"🏢 Organizacja: {nazwa}",
@@ -2237,26 +2396,37 @@ class ProjectRPGCog(commands.Cog):
         embed.description = (
             f"```yaml\n"
             f"Aktywnych online : {len(matched)}\n"
-            f"Zweryfikowanych  : {result['checked']} / {result['total']}\n"
+            f"Serwer ProjectRPG: {result['total']} graczy online\n"
             f"```"
         )
 
         if matched:
-            listing = "\n".join(f"`{i + 1:02d}.` **{n}**" for i, n in enumerate(matched[:50]))
+            listing_lines = []
+            for i, n in enumerate(matched[:50]):
+                r = matched_details.get(n)
+                if r:
+                    listing_lines.append(f"`{i + 1:02d}.` **{n}** *(⤷ {r})*")
+                else:
+                    listing_lines.append(f"`{i + 1:02d}.` **{n}**")
+            listing = "\n".join(listing_lines)
             embed.add_field(name="📋 Gracze online z tej organizacji", value=listing, inline=False)
             if len(matched) > 50:
                 embed.add_field(name="\u200b", value=f"*...i {len(matched) - 50} więcej.*", inline=False)
         else:
             embed.add_field(
                 name="📋 Gracze online z tej organizacji",
-                value="*Brak graczy online z tej organizacji (albo dane serwera są niedostępne dla części graczy).*",
+                value="*Brak graczy online z tej organizacji w tej chwili.*",
                 inline=False
             )
 
-        source_label = "zbiorczy endpoint serwera" if result.get("source") == "bulk" else "endpoint serwera (per gracz)"
+        source_label = (
+            "zbiorczy endpoint serwera" if result.get("source") == "bulk"
+            else "endpoint serwera (per gracz)" if result.get("source") == "per_player"
+            else "baza organizacji + forum ProjectRPG"
+        )
         footer = f"Źródło: {source_label} • Wynik cache'owany na {int(ORG_COUNT_CACHE_TTL)}s"
         if result.get("errors"):
-            footer = f"⚠️ {result['errors']} graczy bez odpowiedzi serwera • {footer}"
+            footer = f"⚠️ {result['errors']} błędów weryfikacji • {footer}"
         embed.set_footer(text=footer)
 
         await interaction.followup.send(embed=embed)
@@ -2310,6 +2480,17 @@ class ProjectRPGCog(commands.Cog):
                 organizacja = game_info["organizacja"]
                 if game_info.get("ranga_organizacji"):
                     organizacja += f" (⤷ {game_info['ranga_organizacji']})"
+                _PLAYER_ORG_CACHE[nick.lower()] = {
+                    "org": game_info["organizacja"],
+                    "rank": game_info.get("ranga_organizacji") or "",
+                    "ts": time.monotonic()
+                }
+            elif game_info:
+                _PLAYER_ORG_CACHE[nick.lower()] = {
+                    "org": "",
+                    "rank": "",
+                    "ts": time.monotonic()
+                }
 
             reputacja = na
             if game_info and game_info.get("reputacja"):
