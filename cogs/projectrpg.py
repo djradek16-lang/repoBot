@@ -654,12 +654,19 @@ async def _count_online_players_in_organization(
                     if c:
                         candidate_keys.add(c.lower())
 
-                detected_rank = "Członek"
-                for r in m.roles:
+                detected_rank = "Saper" if is_team77 else "Członek"
+                rank_keywords = (
+                    "lider", "zarząd", "zarzad", "sztab", "kierownik", "opiekun",
+                    "generał", "general", "pułkownik", "pulkownik", "podpułkownik", "podpulkownik",
+                    "major", "kapitan", "porucznik", "podporucznik", "chorąży", "chorazy",
+                    "sierżant", "sierzant", "plutonowy", "kapral", "starszy saper", "saper",
+                    "starszy szeregowy", "szeregowy", "rekrut", "kadet"
+                )
+                for r in reversed(m.roles):
                     if r.id in rank_role_names:
                         detected_rank = rank_role_names[r.id]
                         break
-                    elif any(kw in r.name.lower() for kw in ("lider", "zarząd", "zarzad", "kierownik", "saper", "kapral")):
+                    elif any(kw in r.name.lower() for kw in rank_keywords):
                         detected_rank = r.name
                         break
 
@@ -2243,11 +2250,8 @@ class OrgMembersPaginator(discord.ui.View):
                 idx = start + i + 1
                 dot = "🟢" if m.get("online") else "🔴"
                 nick = m.get("nick", "Nieznany")
-                rank = m.get("rank")
-                if rank and rank.strip().lower() not in ("członek", "czlonek", ""):
-                    lines.append(f"`{idx:02d}.` {dot} **{nick}** *(⤷ {rank})*")
-                else:
-                    lines.append(f"`{idx:02d}.` {dot} **{nick}**")
+                rank = m.get("rank") or ("Saper" if "77" in self.org_name.lower() else "Członek")
+                lines.append(f"`{idx:02d}.` {dot} **{nick}** *(⤷ {rank})*")
             embed.add_field(
                 name="📋 Lista Członków",
                 value="\n".join(lines),
