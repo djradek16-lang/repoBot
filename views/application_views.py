@@ -1158,8 +1158,6 @@ async def _handle_lookup(
             if game_info.get("ranga_frakcji"):
                 frakcja_str += f" ({game_info['ranga_frakcji']})"
             embed.add_field(name="🚓 Frakcja", value=frakcja_str, inline=True)
-        if game_info.get("punkty_karne"):
-            embed.add_field(name="⚠️ Punkty Karne", value=f"**{game_info['punkty_karne']}**", inline=True)
 
     if forum_ref and forum_ref.get("profile_url"):
         embed.add_field(name="🔗 Profil Forum", value=f"[Otwórz profil na forum]({forum_ref['profile_url']})", inline=False)
