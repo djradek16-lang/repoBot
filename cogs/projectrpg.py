@@ -1091,8 +1091,9 @@ async def _scrape_forum_game_info(profile_url: str) -> Optional[dict]:
             else:
                 result["ranga_organizacji"] = value
             ranga_seen += 1
-        elif norm == "reputacja":
+        elif norm in ("reputacja", "rp", "punkty rp", "punkty_rp", "reputation", "punkty reputacji", "ilość reputacji"):
             result["reputacja"] = value
+            result["rp_points"] = value
         elif norm in ("punkty karne", "punkty_karne"):
             result["punkty_karne"] = value
 
@@ -1102,9 +1103,15 @@ async def _scrape_forum_game_info(profile_url: str) -> Optional[dict]:
     # jako nagłówek, a wartość liczbowa tuż pod spodem. Dodatkowy fallback tekstowy na taki układ.
     container_text = _strip_tags(container)
     if result["reputacja"] is None:
-        m = re.search(r"Reputacja\D{0,10}([\d\s]+)", container_text)
+        m = re.search(r"(?:Reputacja|Punkty\s*RP|Punkty\s*Reputacji|RP)\D{0,10}([\d\s]+)", container_text, re.IGNORECASE)
         if m:
             result["reputacja"] = m.group(1).strip()
+            result["rp_points"] = result["reputacja"]
+    if result["reputacja"] is None:
+        m = re.search(r"\b(?:Reputacja|Punkty\s*RP)\b\D{0,10}([\d\s]+)", _strip_tags(html), re.IGNORECASE)
+        if m:
+            result["reputacja"] = m.group(1).strip()
+            result["rp_points"] = result["reputacja"]
     if result["punkty_karne"] is None:
         m = re.search(r"Punkty Karne\D{0,10}([\d\s]+)", container_text)
         if m:
@@ -1699,6 +1706,7 @@ def _query_ase_full() -> dict:
                 idx += 1
 
         result['player_list'] = player_names
+        result['players_list'] = player_names
     except Exception as e:
         logger.debug(f"ASE query error: {e}")
     finally:

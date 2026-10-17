@@ -333,6 +333,10 @@ def build_review_embed(
     embed.add_field(name="🎂 Wiek", value=f"**{age} lat**", inline=True)
     embed.add_field(name="⏱️ RP", value=f"**{rp}**", inline=True)
     embed.add_field(name="💰 Wpisowe & Zasady", value="**✅ Zgoda (3k $)**", inline=True)
+    
+    is_mta = bool(verification and verification.get("is_online_mta"))
+    mta_badge = "🟢 **Online na MTA**" if is_mta else "⚪ **Offline w grze**"
+    embed.add_field(name="🎮 Status MTA", value=mta_badge, inline=True)
     embed.add_field(name="🟢 Status na DC", value="**Obecny na serwerze**", inline=True)
 
     # Uzasadnienie kandydata (pełna szerokość)
@@ -493,6 +497,19 @@ async def _process_application(interaction: discord.Interaction, fields: dict[st
     )
 
     verification = await verify_against_forum(fields.get("Nick", ""), fields.get("Login", ""), fields.get("UID", ""))
+
+    # Sprawdzenie czy kandydat jest online na serwerze MTA w chwili składania podania
+    is_online_mta = False
+    try:
+        from cogs.projectrpg import _get_ase_data
+        ase_data = await _get_ase_data()
+        player_list = ase_data.get("player_list") or ase_data.get("players_list") or []
+        check_names = {fields.get("Nick", "").strip().lower(), fields.get("Login", "").strip().lower()} - {""}
+        is_online_mta = any(str(p).strip().lower() in check_names for p in player_list)
+    except Exception:
+        pass
+    if verification is not None:
+        verification["is_online_mta"] = is_online_mta
 
     forum_url = (verification or {}).get("profile_url") or ""
     try:
@@ -1019,40 +1036,130 @@ async def _handle_lookup(
     nick = (app_row["nick"] if app_row and app_row["nick"] else "") or ""
     uid = (app_row["uid"] if app_row and app_row["uid"] else "") or ""
     login = (app_row["login"] if app_row and app_row["login"] else "") or ""
+    declared_rp = (app_row["rp_points"] if app_row and app_row.get("rp_points") else "") or ""
+
+    # Fallback do embeda wiadomości przeglądu (gdyby w bazie brakowało pól)
+    if target_message and target_message.embeds:
+        orig = target_message.embeds[0]
+        for f in orig.fields:
+            f_name = f.name.lower()
+            if "uid" in f_name and not uid:
+                uid = re.sub(r"[^\d]", "", f.value)
+            elif "rp" in f_name and not declared_rp:
+                val = f.value.replace("*", "").strip()
+                if val and val != "?":
+                    declared_rp = val
+            elif "nick" in f_name and not nick:
+                val = f.value.replace("*", "").strip()
+                if "/" in val:
+                    parts = val.split("/", 1)
+                    nick = parts[0].strip()
+                    if not login:
+                        login = parts[1].strip()
+                else:
+                    nick = val
 
     query = nick or uid or login or str(user_id)
-    from cogs.projectrpg import _find_forum_profile_url, _scrape_forum_game_info, _get_ase_data
+    from cogs.projectrpg import (
+        _find_forum_profile_url,
+        _scrape_forum_game_info,
+        _get_ase_data,
+        _fetch_server_player_extra
+    )
 
     forum_ref = await _find_forum_profile_url(query) if query else None
     game_info = None
     if forum_ref and forum_ref.get("profile_url"):
         game_info = await _scrape_forum_game_info(forum_ref["profile_url"])
 
+    # Sprawdzenie statusu online w MTA na żywo z protokołu ASE
     is_online_mta = False
+    mta_player_name = None
+    server_extra = None
     try:
-        ase_data = await _get_ase_data()
-        players = ase_data.get("players", [])
-        if nick:
-            is_online_mta = any(nick.lower() == p.get("name", "").lower() for p in players)
-    except Exception:
-        pass
+        ase_data = await _get_ase_data(force_refresh=True)
+        player_list = ase_data.get("player_list") or ase_data.get("players_list") or []
+
+        names_to_check = set()
+        for val in (nick, login):
+            if val and val.strip():
+                v_clean = val.strip().lower()
+                names_to_check.add(v_clean)
+                if "/" in v_clean:
+                    for part in v_clean.split("/"):
+                        if part.strip():
+                            names_to_check.add(part.strip())
+
+        if user_id:
+            member = guild.get_member(user_id)
+            if member:
+                names_to_check.add(member.display_name.strip().lower())
+                names_to_check.add(member.name.strip().lower())
+
+        for p in player_list:
+            clean_p = str(p).strip()
+            if clean_p.lower() in names_to_check:
+                is_online_mta = True
+                mta_player_name = clean_p
+                break
+
+        if is_online_mta and mta_player_name:
+            server_extra = await _fetch_server_player_extra(mta_player_name)
+    except Exception as e:
+        logger.warning(f"Błąd sprawdzania statusu MTA w skanerze: {e}")
+
+    # Formatowanie statusu MTA
+    if is_online_mta:
+        if server_extra and server_extra.get("id") is not None:
+            extra_details = f" (ID: `{server_extra['id']}`"
+            if server_extra.get("ping") is not None:
+                extra_details += f", Ping: `{server_extra['ping']} ms`"
+            extra_details += ")"
+            status_mta_val = f"🟢 **Online na serwerze MTA**{extra_details}"
+        else:
+            status_mta_val = "🟢 **Online na serwerze MTA**"
+    else:
+        status_mta_val = "⚪ **Offline w grze**"
+
+    # Punkty RP z forum i z podania
+    forum_rp = None
+    if game_info:
+        forum_rp = game_info.get("reputacja") or game_info.get("rp_points")
+
+    if forum_rp and declared_rp:
+        if _only_digits(str(forum_rp)) == _only_digits(str(declared_rp)):
+            rp_val = f"**{forum_rp} RP** *(zweryfikowane z forum ✅)*"
+        else:
+            rp_val = f"**{forum_rp} RP** *(forum)* • *zadeklarowano: {declared_rp}*"
+    elif forum_rp:
+        rp_val = f"**{forum_rp} RP** *(z profilu forum)*"
+    elif declared_rp:
+        rp_val = f"**{declared_rp}** *(zadeklarowane w podaniu)*"
+    else:
+        rp_val = "*Brak danych o RP*"
 
     embed = info_embed(
         f"📊 Skaner Gracza: {nick or uid or user_id}",
         f"Informacje o kandydacie <@{user_id}> pobrane z forum i serwera ProjectRPG."
     )
-    embed.add_field(name="🪪 Nick / Login", value=f"{nick or '-'} / {login or '-'}", inline=True)
-    embed.add_field(name="🆔 UID", value=uid or (game_info.get("uid") if game_info else "-"), inline=True)
-    embed.add_field(
-        name="🎮 Status MTA",
-        value="🟢 Online na serwerze MTA" if is_online_mta else "⚪ Offline w grze",
-        inline=True
-    )
+    embed.add_field(name="🪪 Nick / Login", value=f"**{nick or '-'}** / **{login or '-'}**", inline=True)
+    embed.add_field(name="🆔 UID", value=f"**{uid or (game_info.get('uid') if game_info else '-')}**", inline=True)
+    embed.add_field(name="🎮 Status MTA", value=status_mta_val, inline=True)
+    embed.add_field(name="⏱️ Punkty RP", value=rp_val, inline=True)
 
     if game_info:
-        embed.add_field(name="⏱️ Punkty RP", value=game_info.get("rp_points") or "Brak", inline=True)
-        if game_info.get("reputation"):
-            embed.add_field(name="⭐ Reputacja", value=str(game_info.get("reputation")), inline=True)
+        if game_info.get("organizacja"):
+            org_str = f"**{game_info['organizacja']}**"
+            if game_info.get("ranga_organizacji"):
+                org_str += f" ({game_info['ranga_organizacji']})"
+            embed.add_field(name="🏢 Organizacja", value=org_str, inline=True)
+        if game_info.get("frakcja"):
+            frakcja_str = f"**{game_info['frakcja']}**"
+            if game_info.get("ranga_frakcji"):
+                frakcja_str += f" ({game_info['ranga_frakcji']})"
+            embed.add_field(name="🚓 Frakcja", value=frakcja_str, inline=True)
+        if game_info.get("punkty_karne"):
+            embed.add_field(name="⚠️ Punkty Karne", value=f"**{game_info['punkty_karne']}**", inline=True)
 
     if forum_ref and forum_ref.get("profile_url"):
         embed.add_field(name="🔗 Profil Forum", value=f"[Otwórz profil na forum]({forum_ref['profile_url']})", inline=False)
