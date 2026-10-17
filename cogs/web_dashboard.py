@@ -256,7 +256,7 @@ class WebDashboardCog(commands.Cog, name="WebDashboardCog"):
         bot_voice_channel_name = None
         stream_title = ""
 
-        music_cog = self.bot.get_cog("MusicCog")
+        music_cog = self.bot.get_cog("AudycjaCog") or self.bot.get_cog("MusicCog")
         if music_cog and hasattr(music_cog, "_get_schedule_shows"):
             _, cur, nxt, _ = music_cog._get_schedule_shows()
             if cur:

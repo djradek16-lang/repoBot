@@ -58,9 +58,6 @@ class AegisBot(commands.Bot):
         self.tree.on_error = self.on_app_command_error
         self.tree.interaction_check = self.global_interaction_check
 
-        # --- Połączenie z węzłem Lavalink ---
-        await self._connect_lavalink()
-
         # Ładowanie wszystkich modułów z katalogu cogs/
         cogs_dir = config.BASE_DIR / "cogs"
         if cogs_dir.exists():
@@ -177,16 +174,14 @@ class AegisBot(commands.Bot):
     async def before_rotate_status(self) -> None:
         await self.wait_until_ready()
 
-    # Nazwy komend muzycznych (dostępne dla wszystkich użytkowników)
+    # Nazwy komend audycji i radia (dostępne dla wszystkich użytkowników)
     MUSIC_COMMANDS: frozenset[str] = frozenset({
-        "play", "skip", "stop", "pause", "resume", "queue", "volume",
-        "nowplaying", "np", "loop", "shuffle", "clearqueue", "remove", "skipto",
         "radio", "projectfm", "audycja"
     })
 
     # Nazwy Cogów, których WSZYSTKIE komendy są publiczne (dostępne dla każdego),
     # niezależnie od tego, jak się nazywają - wystarczy dopisać tu nazwę Coga.
-    PUBLIC_COGS: frozenset[str] = frozenset({"MusicCog"})
+    PUBLIC_COGS: frozenset[str] = frozenset({"AudycjaCog", "MusicCog"})
 
     # Pojedyncze komendy publiczne spoza powyższych Cogów (np. /stats) - dostępne
     # dla każdego, nawet jeśli reszta komend w ich Cogu zostaje zablokowana.

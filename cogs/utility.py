@@ -37,7 +37,7 @@ class HelpSelect(discord.ui.Select):
 
         options = [
             discord.SelectOption(label="🎮 MTA: ProjectRPG", value="prpg", description="Status serwera, zarobki, tuning, SAPD, wzory apelacji"),
-            discord.SelectOption(label="🎵 Odtwarzacz Muzyczny", value="music", description="Odtwarzanie audio i kolejka"),
+            discord.SelectOption(label="📻 Audycje & Radio Project FM", value="audycja", description="Ramówka audycji, powiadomienia i Radio"),
             discord.SelectOption(label="🧰 Narzędzia & Pomoc", value="utility", description="Informacje, przypomnienia, ankiety"),
         ]
 
@@ -65,7 +65,7 @@ class HelpSelect(discord.ui.Select):
             "suggestions": ("💡 Sugestie i Propozycje", "` /suggest `" + (" , ` /suggestion accept `, ` /suggestion reject `" if self.is_admin else "")),
             "fun": ("🎲 Rozrywka i Hazard", "` /8ball `, ` /coinflip `, ` /roll `, ` /meme `, ` /cat `, ` /dog `, ` /hug `, ` /slap `"),
             "prpg": ("🎮 MTA: ProjectRPG", "` /prpg status `, ` /prpg gracze `, ` /prpg szukaj `, ` /prpg zarobki `, ` /prpg tuning `, ` /prpg taryfikator `, ` /prpg apelacja `, ` /prpg frakcje `"),
-            "music": ("🎵 Odtwarzacz Muzyczny", "` /play `, ` /pause `, ` /resume `, ` /skip `, ` /queue `, ` /stop `, ` /volume `"),
+            "audycja": ("📻 Audycje & Radio Project FM", "` /audycja `, ` /radio `, ` /projectfm `"),
             "utility": ("🧰 Narzędzia i Pomoc", "` /help `, ` /ping `, ` /userinfo `, ` /serverinfo `, ` /avatar `, ` /botinfo `, ` /remind `, ` /poll `, ` /math `"),
             "owner": ("👑 Komendy Właściciela", "` /owner reload `, ` /owner sync `, ` /owner servers `, ` /owner eval `, ` /owner restart `, ` /owner shutdown `, ` /owner blacklist `")
         }
