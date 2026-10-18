@@ -59,7 +59,6 @@ def build_fleet_embed(
         title="🚗 Flota Pojazdów Organizacji Team77",
         description=(
             f"{stats_line}\n"
-            f"Oficjalna baza pobrana na żywo z **[ProjectRPG.pl/vehicles](https://projectrpg.pl/vehicles/)**.\n"
             f"-# 💡 *Wybierz pojazd z poniższego menu, aby wyświetlić tuning i historię.*"
         ),
         color=0xE67E22,
@@ -159,8 +158,7 @@ def build_detail_embed(detail: dict[str, Any]) -> discord.Embed:
     )
 
     embed.set_footer(
-        text=f"Baza pojazdów ProjectRPG.pl • VUID: #{detail['id']}",
-        icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
+        text=f"Baza pojazdów Team77 • VUID: #{detail['id']}",
     )
     return embed
 
