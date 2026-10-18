@@ -253,7 +253,9 @@ class Database:
                 applications_channel_id BIGINT,
                 applications_review_channel_id BIGINT,
                 applications_management_role_id BIGINT,
-                applications_accept_role_id BIGINT
+                applications_accept_role_id BIGINT,
+                member_log_channel_id BIGINT,
+                attachment_log_channel_id BIGINT
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
             """,
             # Role nadawane po akceptacji podania
@@ -758,7 +760,9 @@ class Database:
                 applications_channel_id INTEGER,
                 applications_review_channel_id INTEGER,
                 applications_management_role_id INTEGER,
-                applications_accept_role_id INTEGER
+                applications_accept_role_id INTEGER,
+                member_log_channel_id INTEGER,
+                attachment_log_channel_id INTEGER
             );
             """,
             """
@@ -1212,6 +1216,8 @@ class Database:
             ("guild_config", "applications_review_channel_id", "INTEGER"),
             ("guild_config", "applications_management_role_id", "INTEGER"),
             ("guild_config", "applications_accept_role_id", "INTEGER"),
+            ("guild_config", "member_log_channel_id", "INTEGER"),
+            ("guild_config", "attachment_log_channel_id", "INTEGER"),
             ("donations", "nick", "TEXT"),
             ("donations", "login", "TEXT"),
             ("recruit_entries", "profile_url", "TEXT"),

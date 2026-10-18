@@ -69,4 +69,4 @@ FOOTER_ICON_URL: str = ""
 DASHBOARD_ENABLED: bool = _get_bool_env("DASHBOARD_ENABLED", True)
 DASHBOARD_HOST: str = os.getenv("DASHBOARD_HOST", "0.0.0.0").strip()
 DASHBOARD_PORT: int = _get_int_env("DASHBOARD_PORT", 8080)
-DASHBOARD_PASSWORD: str = os.getenv("DASHBOARD_PASSWORD", "team77admin").strip()
+DASHBOARD_PASSWORD: str = os.getenv("DASHBOARD_PASSWORD", "team77admin").strip()

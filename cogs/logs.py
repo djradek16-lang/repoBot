@@ -7,6 +7,7 @@ instancje sceny oraz akcje AutoMod. Każda kategoria zdarzeń ma własny kolor e
 
 from __future__ import annotations
 
+import io
 import logging
 import time
 from typing import Any
@@ -23,6 +24,16 @@ FIELD_LIMIT = 1024
 CACHE_TTL_SECONDS = 60
 
 
+def _format_bytes(size_bytes: int) -> str:
+    """Formatuje bajty do czytelnego rozmiaru (B, KB, MB)."""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    else:
+        return f"{size_bytes / (1024 * 1024):.2f} MB"
+
+
 class Color:
     """Paleta kolorów embedów, pogrupowana wg charakteru zdarzenia."""
     CREATE = 0x34C759    # zielony  - coś powstało
@@ -34,6 +45,7 @@ class Color:
     PUNISH = 0xD70015     # ciemny czerwony - kara
     RESTORE = 0x30D5C8    # turkus - zdjęcie kary / unban
     AUTOMOD = 0xFFD60A    # żółty - AutoMod
+    FILE = 0xEC4899       # róż/magenta - usunięty plik / zdjęcie
 
 
 def _truncate(text: str | None, placeholder: str = "*Brak treści*") -> str:
@@ -58,24 +70,19 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
 
     async def _ensure_schema(self) -> None:
         """
-        Samo-naprawiająca się migracja: dokłada kolumnę member_log_channel_id do
-        guild_config, jeśli jeszcze jej nie ma. SQLite zgłasza wtedy błąd
-        "duplicate column name" gdy kolumna już istnieje — traktujemy to jako
-        potwierdzenie, że schemat jest aktualny, a nie jako awarię.
+        Samo-naprawiająca się migracja: dokłada brakujące kolumny w guild_config.
         """
-        try:
-            await self.bot.db.execute(
-                "ALTER TABLE guild_config ADD COLUMN member_log_channel_id INTEGER"
-            )
-            logger.info("Dodano brakującą kolumnę member_log_channel_id do guild_config.")
-        except Exception as exc:
-            if "duplicate column" in str(exc).lower():
-                logger.debug("Kolumna member_log_channel_id już istnieje w guild_config — pomijam migrację.")
-            else:
-                logger.exception(
-                    "Nie udało się sprawdzić/dodać kolumny member_log_channel_id w guild_config. "
-                    "Logi wejść/wyjść będą działać w trybie awaryjnym (bez osobnego kanału) do czasu naprawy."
+        for col in ("member_log_channel_id", "attachment_log_channel_id"):
+            try:
+                await self.bot.db.execute(
+                    f"ALTER TABLE guild_config ADD COLUMN {col} INTEGER"
                 )
+                logger.info(f"Dodano brakującą kolumnę {col} do guild_config.")
+            except Exception as exc:
+                if "duplicate column" in str(exc).lower():
+                    pass
+                else:
+                    logger.debug(f"Migracja kolumny {col}: {exc}")
 
     # ------------------------------------------------------------------ #
     # Pomocnicze
@@ -83,10 +90,9 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
 
     async def get_log_channel(self, guild_id: int, category: str = "default") -> discord.TextChannel | None:
         """
-        category="default"  -> zwykłe logi (wiadomości, role, kanały, itd.)
-        category="members"  -> osobny kanał na wejścia/wyjścia (join/leave).
-                                Jeśli member_log_channel_id nie jest ustawiony w bazie,
-                                spada z powrotem na główny kanał logów.
+        category="default"      -> zwykłe logi (wiadomości, role, kanały, itd.)
+        category="members"      -> osobny kanał na wejścia/wyjścia (join/leave)
+        category="attachments"  -> dedykowany kanał na usunięte pliki i zdjęcia (lub fallback na główny)
         """
         cache_key = (guild_id, category)
         cached = self._channel_cache.get(cache_key)
@@ -95,54 +101,50 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
 
         try:
             cfg = await self.bot.db.fetchone(
-                "SELECT log_channel_id, logs_enabled, member_log_channel_id "
+                "SELECT log_channel_id, logs_enabled, member_log_channel_id, attachment_log_channel_id "
                 "FROM guild_config WHERE guild_id = ?",
                 (guild_id,),
             )
-        except Exception as exc:
-            if "no such column" in str(exc).lower() and "member_log_channel_id" in str(exc):
-                # Migracja z cog_load nie zdążyła/nie mogła się wykonać — spadamy na starą kolumnę,
-                # kategoria "members" po prostu użyje głównego kanału logów.
-                logger.warning(
-                    "Kolumna member_log_channel_id nadal nie istnieje w guild_config (guild_id=%s) — "
-                    "logi wejść/wyjść idą tymczasowo na główny kanał.",
-                    guild_id,
+        except Exception:
+            # Fallback dla starszych schematów
+            try:
+                cfg = await self.bot.db.fetchone(
+                    "SELECT log_channel_id, logs_enabled, member_log_channel_id FROM guild_config WHERE guild_id = ?",
+                    (guild_id,),
                 )
+                if cfg is not None:
+                    cfg = {**dict(cfg), "attachment_log_channel_id": None}
+            except Exception:
                 try:
                     cfg = await self.bot.db.fetchone(
                         "SELECT log_channel_id, logs_enabled FROM guild_config WHERE guild_id = ?",
                         (guild_id,),
                     )
                     if cfg is not None:
-                        cfg = {**dict(cfg), "member_log_channel_id": None}
+                        cfg = {**dict(cfg), "member_log_channel_id": None, "attachment_log_channel_id": None}
                 except Exception:
-                    logger.exception("Nie udało się pobrać konfiguracji logów (fallback) dla guild_id=%s", guild_id)
+                    logger.exception("Nie udało się pobrać konfiguracji logów dla guild_id=%s", guild_id)
                     return None
-            else:
-                logger.exception("Nie udało się pobrać konfiguracji logów dla guild_id=%s", guild_id)
-                return None
 
         channel: discord.TextChannel | None = None
         if cfg and cfg["logs_enabled"]:
             if category == "members":
                 target_channel_id = cfg["member_log_channel_id"] or cfg["log_channel_id"]
+            elif category == "attachments":
+                target_channel_id = (
+                    cfg.get("attachment_log_channel_id")
+                    if isinstance(cfg, dict)
+                    else getattr(cfg, "get", lambda k, d=None: None)("attachment_log_channel_id")
+                ) or cfg["log_channel_id"]
             else:
                 target_channel_id = cfg["log_channel_id"]
 
             if target_channel_id:
                 guild = self.bot.get_guild(guild_id)
-                if guild is None:
-                    logger.warning("Bot nie widzi guild_id=%s przy próbie pobrania kanału logów", guild_id)
-                else:
+                if guild is not None:
                     resolved = guild.get_channel(target_channel_id)
                     if isinstance(resolved, discord.TextChannel):
                         channel = resolved
-                    else:
-                        logger.warning(
-                            "Skonfigurowany kanał logów (%s, kategoria=%s) w guild_id=%s nie istnieje "
-                            "lub nie jest kanałem tekstowym",
-                            target_channel_id, category, guild_id,
-                        )
 
         self._channel_cache[cache_key] = (channel, time.monotonic())
         return channel
@@ -159,11 +161,6 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
         target_id: int,
         within_seconds: float = 5.0,
     ) -> discord.AuditLogEntry | None:
-        """
-        Szuka najświeższego wpisu Audit Log pasującego do danego targetu, wykonanego w ciągu
-        ostatnich `within_seconds` sekund — tak, by nie podpiąć przypadkiem starej, niepowiązanej akcji.
-        Wymaga uprawnienia bota "Wyświetl Dziennik Audytu"; jeśli go brak, po cichu zwraca None.
-        """
         try:
             async for entry in guild.audit_logs(action=action, limit=5):
                 if entry.target is not None and getattr(entry.target, "id", None) == target_id:
@@ -189,16 +186,26 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
         description: str = "",
         category: str = "default",
         thumbnail_url: str | None = None,
+        image_url: str | None = None,
+        files: list[discord.File] | None = None,
     ) -> None:
         channel = await self.get_log_channel(guild_id, category)
         if not channel:
             return
 
         embed = create_embed(
-            title=title, description=description, color=color, fields=fields, thumbnail_url=thumbnail_url
+            title=title,
+            description=description,
+            color=color,
+            fields=fields,
+            thumbnail_url=thumbnail_url,
+            image_url=image_url,
         )
         try:
-            await channel.send(embed=embed)
+            if files:
+                await channel.send(embed=embed, files=files)
+            else:
+                await channel.send(embed=embed)
         except discord.Forbidden:
             logger.warning(
                 "Brak uprawnień do wysłania logu '%s' na kanale #%s (guild_id=%s)",
@@ -211,26 +218,93 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
             )
 
     # ------------------------------------------------------------------ #
-    # Wiadomości
+    # Wiadomości i Załączniki (Pliki każdego formatu & Zdjęcia)
     # ------------------------------------------------------------------ #
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: discord.Message) -> None:
         if message.author.bot or not message.guild:
             return
-        fields = [
+
+        fields: list[dict[str, Any]] = [
             {"name": "Autor", "value": f"{message.author.mention} (`{message.author.id}`)", "inline": True},
             {"name": "Kanał", "value": message.channel.mention, "inline": True},
-            {"name": "Treść", "value": _truncate(message.content, "*Brak treści tekstowej (załącznik/embed)*"), "inline": False},
         ]
 
         entry = await self._find_audit_actor(message.guild, discord.AuditLogAction.message_delete, message.author.id)
         if entry is not None and entry.user is not None and entry.user.id != message.author.id:
             fields.append({"name": "Usunięte Przez", "value": f"{entry.user.mention} (`{entry.user.id}`)", "inline": True})
 
+        if message.content:
+            fields.append({"name": "Treść Wiadomości", "value": _truncate(message.content, "*Brak treści tekstowej*"), "inline": False})
+
+        files_to_send: list[discord.File] = []
+        image_url: str | None = None
+        category = "default"
+        color = Color.DELETE
+
+        # Obsługa usuniętych plików / załączników DOWOLNEGO FORMATU (zdjęcia, wideo, zip, pdf, txt itp.)
+        if message.attachments:
+            category = "attachments"
+            color = Color.FILE
+            att_lines = []
+
+            for att in message.attachments:
+                fname = att.filename
+                fsize = _format_bytes(att.size)
+                ctype = att.content_type or "nieznany"
+                ext = fname.split(".")[-1].lower() if "." in fname else ""
+
+                is_img = ext in ("png", "jpg", "jpeg", "webp", "gif") or ctype.startswith("image/")
+                icon = (
+                    "🖼️" if is_img
+                    else ("📦" if ext in ("zip", "rar", "7z", "tar", "gz")
+                    else ("🎬" if ext in ("mp4", "mov", "mkv", "webm")
+                    else ("📄" if ext in ("pdf", "txt", "docx", "xlsx", "csv")
+                    else ("🎵" if ext in ("mp3", "ogg", "wav")
+                    else "📎"))))
+                )
+
+                # Próba natychmiastowego pobrania pliku z CDN Discorda i re-uploadu do logów (max 15MB)
+                reuploaded_file: discord.File | None = None
+                if att.size <= 15 * 1024 * 1024:
+                    try:
+                        file_bytes = await att.read()
+                        safe_filename = f"USUNIETY_{fname}"
+                        reuploaded_file = discord.File(io.BytesIO(file_bytes), filename=safe_filename)
+                        files_to_send.append(reuploaded_file)
+                    except Exception as exc:
+                        logger.debug("Nie udało się pobrać załącznika %s: %s", fname, exc)
+
+                # Jeśli to obraz i nie ustawiono jeszcze podglądu
+                if is_img and not image_url:
+                    if reuploaded_file:
+                        image_url = f"attachment://USUNIETY_{fname}"
+                    else:
+                        image_url = att.proxy_url or att.url
+
+                status_note = " • 💾 *Zabezpieczono w logach*" if reuploaded_file else ""
+                att_lines.append(f"{icon} **{fname}** (`{fsize}` • `{ctype}`){status_note}")
+
+            fields.append({
+                "name": f"📎 Usunięte Załączniki ({len(message.attachments)})",
+                "value": _truncate("\n".join(att_lines)),
+                "inline": False,
+            })
+
+            title = "🖼️ Usunięto Załącznik / Plik" if not message.content else "🗑️ Usunięto Wiadomość z Załącznikami"
+        else:
+            title = "🗑️ Usunięto Wiadomość"
+
         await self._send_log(
-            message.guild.id, "🗑️ Usunięto Wiadomość", fields, color=Color.DELETE,
+            message.guild.id,
+            title,
+            fields,
+            color=color,
+            category=category,
             thumbnail_url=message.author.display_avatar.url,
+            image_url=image_url,
+            files=files_to_send if files_to_send else None,
         )
 
     @commands.Cog.listener()
@@ -735,6 +809,67 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
         embed = create_embed(
             title="✅ Zresetowano Kanał Wejść/Wyjść",
             description="Logi dołączeń i wyjść wrócą na główny kanał logów.",
+            color=Color.RESTORE,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name="setattachmentchannel",
+        description="Ustaw dedykowany kanał na logi usuniętych zdjęć, filmów i plików dowolnego formatu.",
+    )
+    @app_commands.describe(channel="Kanał tekstowy, na który bot ma wysyłać logi i kopie usuniętych plików.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def set_attachment_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        assert interaction.guild is not None
+        try:
+            await self.bot.db.execute(
+                "INSERT INTO guild_config (guild_id, attachment_log_channel_id) VALUES (?, ?) "
+                "ON CONFLICT(guild_id) DO UPDATE SET attachment_log_channel_id = excluded.attachment_log_channel_id",
+                (interaction.guild.id, channel.id),
+            )
+        except Exception:
+            logger.exception("Nie udało się zapisać attachment_log_channel_id dla guild_id=%s", interaction.guild.id)
+            await interaction.response.send_message(
+                "❌ Nie udało się zapisać ustawienia w bazie. Spróbuj ponownie później.", ephemeral=True
+            )
+            return
+
+        self.invalidate_cache(interaction.guild.id)
+        embed = create_embed(
+            title="📎 Ustawiono Kanał Logów Plików i Zdjęć",
+            description=(
+                f"Wszystkie usunięte zdjęcia, zrzuty ekranu, filmy, archiwa i pliki dowolnego formatu "
+                f"będą teraz archiwizowane i reuploadowane na kanale {channel.mention}."
+            ),
+            color=Color.ATTACHMENT,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(
+        name="resetattachmentchannel",
+        description="Wyłącz osobny kanał usuniętych plików — logi plików wrócą na główny kanał logów.",
+    )
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def reset_attachment_channel(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild is not None
+        try:
+            await self.bot.db.execute(
+                "UPDATE guild_config SET attachment_log_channel_id = NULL WHERE guild_id = ?",
+                (interaction.guild.id,),
+            )
+        except Exception:
+            logger.exception("Nie udało się wyczyścić attachment_log_channel_id dla guild_id=%s", interaction.guild.id)
+            await interaction.response.send_message(
+                "❌ Nie udało się zapisać ustawienia w bazie. Spróbuj ponownie później.", ephemeral=True
+            )
+            return
+
+        self.invalidate_cache(interaction.guild.id)
+        embed = create_embed(
+            title="✅ Zresetowano Kanał Plików i Zdjęć",
+            description="Logi usuniętych plików i zdjęć wrócą na główny kanał logów.",
             color=Color.RESTORE,
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
