@@ -145,14 +145,25 @@ def build_detail_embed(detail: dict[str, Any]) -> discord.Embed:
     if detail.get("lamp_color") and detail["lamp_color"] != "Brak":
         embed.add_field(name="💡 Kolor Świateł", value=f"`{detail['lamp_color']}`", inline=True)
 
-    last_driver = detail.get("last_driver", "—")
-    drivers_val = f"**{last_driver}**"
-    if detail.get("recent_drivers"):
-        d_lines = [f"{i+1}. `{d}`" for i, d in enumerate(detail["recent_drivers"][:5])]
-        drivers_val += "\n" + "\n".join(d_lines)
+    # Ostatni kierowcy
+    drivers_list = detail.get("recent_drivers", [])
+    if drivers_list:
+        lines = []
+        for i, item in enumerate(drivers_list[:5], 1):
+            if isinstance(item, dict):
+                nick = item.get("nick", "Nieznany")
+                time_str = item.get("time", "")
+                t_suffix = f" — 🕒 `{time_str}`" if time_str else ""
+                lines.append(f"{i}. **{nick}**{t_suffix}")
+            else:
+                lines.append(f"{i}. `{item}`")
+        drivers_val = "\n".join(lines)
+    else:
+        last_d = detail.get("last_driver", "—")
+        drivers_val = f"• **{last_d}**" if last_d != "—" else "Brak danych o kierowcach"
 
     embed.add_field(
-        name="🕒 Ostatni Kierowcy w Grze",
+        name="🕒 Ostatni Kierowcy w Grze (Dzień i Godzina)",
         value=drivers_val,
         inline=False,
     )
@@ -199,6 +210,7 @@ class FleetVehicleSelect(ui.Select):
 
     def __init__(self, vehicles_on_page: list[dict[str, Any]], fleet_service: FleetService) -> None:
         self.fleet_service = fleet_service
+        self.vehicles_on_page = vehicles_on_page
         options = []
         for v in vehicles_on_page[:25]:
             emoji = get_vehicle_emoji(v.get("model", ""))
@@ -217,10 +229,20 @@ class FleetVehicleSelect(ui.Select):
     async def callback(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         vuid = int(self.values[0])
-        detail = await self.fleet_service.get_vehicle_detail(vuid)
+
+        selected_owner = None
+        for v in self.vehicles_on_page:
+            if v.get("id") == vuid:
+                selected_owner = v.get("owner")
+                break
+
+        detail = await self.fleet_service.get_vehicle_detail(vuid, owner=selected_owner)
         if not detail:
             await interaction.followup.send(f"❌ Nie udało się pobrać szczegółów dla pojazdu #{vuid}.", ephemeral=True)
             return
+
+        if selected_owner and detail.get("owner") in (None, "", "—"):
+            detail["owner"] = selected_owner
 
         embed = build_detail_embed(detail)
         view = discord.ui.View()

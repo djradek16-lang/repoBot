@@ -8,7 +8,6 @@ Obsługuje zarówno komendy slash (/flota), komendy hybrydowe, jak i komendy z p
 from __future__ import annotations
 
 import logging
-from collections import Counter
 from typing import Optional
 
 import discord
@@ -127,52 +126,7 @@ class FleetCog(commands.Cog, name="fleet"):
         else:
             await ctx.send(embed=embed, view=view)
 
-    @commands.hybrid_command(
-        name="flota_statystyki",
-        aliases=["flotastat", "fleetstats"],
-        description="Wyświetl statystyki floty Team77: najpopularniejsze modele, rodzaje silników i właścicieli.",
-    )
-    async def cmd_flota_statystyki(self, ctx: commands.Context) -> None:
-        """Generuje raport statystyczny floty Team77."""
-        await ctx.defer()
 
-        vehicles = await self.service.get_fleet(organization="Team77")
-        if not vehicles:
-            msg = "❌ Brak danych o flocie. Spróbuj ponownie później."
-            if ctx.interaction:
-                await ctx.interaction.followup.send(msg, ephemeral=True)
-            else:
-                await ctx.send(msg)
-            return
-
-        total_count = len(vehicles)
-        models_counter = Counter(v["model"] for v in vehicles)
-        owners_counter = Counter(v["owner"] for v in vehicles)
-        fuels_counter = Counter(v.get("fuel", "Nieznane") for v in vehicles)
-
-        top_models = "\n".join(f"• **{m}**: `{c} szt.`" for m, c in models_counter.most_common(6))
-        top_owners = "\n".join(f"• **{o}**: `{c} aut`" for o, c in owners_counter.most_common(6))
-        fuels_str = " | ".join(f"**{f}**: `{c}`" for f, c in fuels_counter.items())
-
-        embed = discord.Embed(
-            title="📊 Raport i Statystyki Floty Team77",
-            description=(
-                f"Łączna wielkość floty organizacji: **{total_count} pojazdów**.\n"
-                f"Średnia liczba aut przypisanych do członka: **{total_count / max(1, len(owners_counter)):.1f}**\n\n"
-                f"⛽ **Podział rodzajów paliwa:**\n{fuels_str}"
-            ),
-            color=0x2ECC71,
-        )
-        embed.add_field(name="🏎️ Najpopularniejsze Modele", value=top_models, inline=True)
-        embed.add_field(name="👑 Najwięcej Pojazdów w Org", value=top_owners, inline=True)
-        embed.set_footer(
-            text="Baza pojazdów ProjectRPG.pl • Team77",
-            icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
-        )
-        if ctx.interaction:
-            await ctx.interaction.followup.send(embed=embed)
-        else:
-            await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:

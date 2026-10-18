@@ -245,35 +245,61 @@ class FleetService:
         data["membership"] = fields.get("przynależność") or fields.get("przynaleznosc") or data["membership"]
         data["visual_tuning"] = fields.get("tuning wizualny") or "Brak"
         data["mechanical_tuning"] = fields.get("tuning mechaniczny") or "Brak"
+        data["owner"] = fields.get("właściciel") or fields.get("wlasciciel") or "—"
 
         # Kolor świateł (z tooltipu)
         lamp_m = re.search(r'title=[\'"]([^\'"]+)[\'"][^>]*data-ipsTooltip[^>]*style=[\'"][^\'"]*background:', html)
         if lamp_m:
             data["lamp_color"] = lamp_m.group(1)
 
-        # Ostatni kierowcy
-        drivers_block = re.search(r"id=[\'\"]ipsTabs_tab_drivers_drivers_panel[\'\"][^>]*>(.*?)</div>", html, re.DOTALL)
-        if drivers_block:
-            d_rows = re.findall(r"<li[^>]*>(.*?)</li>", drivers_block.group(1), re.DOTALL)
-            recent = []
-            for dr in d_rows[:5]:
-                c = _clean_text(dr)
-                if c:
-                    recent.append(c)
-            data["recent_drivers"] = recent
+        # Ostatni kierowcy (z datą i godziną z zakładki kierowców)
+        recent: list[dict[str, str]] = []
+        lists = re.findall(r"<ul class=[\'\"]ipsDataList ipsDataList_reducedSpacing[\'\"][^>]*>(.*?)</ul>", html, re.DOTALL)
+        driver_ul = lists[1] if len(lists) >= 2 else (lists[0] if lists else "")
+        if driver_ul:
+            li_items = re.findall(r"<li class=[\'\"]ipsDataItem ipsType_break[\'\"]>(.*?)</li>", driver_ul, re.DOTALL)
+            for li in li_items[:5]:
+                strong_m = re.search(r"<strong>(.*?)</strong>", li, re.DOTALL)
+                raw_nick = strong_m.group(1) if strong_m else ""
+                nick = re.sub(r"<[^>]+>", "", raw_nick).strip().replace("\u2605", "*").replace("\u2606", "*")
 
+                time_m = re.search(r"<time datetime=[\'\"][^\'\"]+[\'\"] title=[\'\"]([^\'\"]+)[\'\"]", li)
+                t_clean = time_m.group(1).strip() if time_m else ""
+                m_dt = re.match(r"^(\d{4})\.(\d{2})\.(\d{2})\s+(\d{2}:\d{2})", t_clean)
+                if m_dt:
+                    y, mo, d, hm = m_dt.groups()
+                    date_formatted = f"{d}.{mo}.{y} {hm}"
+                else:
+                    date_formatted = t_clean
+
+                if nick and nick.lower() not in ("vuid", "model", "silnik", "przebieg", "tablica"):
+                    recent.append({
+                        "nick": nick,
+                        "time": date_formatted,
+                    })
+
+        data["recent_drivers"] = recent
         return data
 
-    async def get_vehicle_detail(self, vuid: int, force: bool = False) -> dict[str, Any] | None:
+    async def get_vehicle_detail(self, vuid: int, force: bool = False, owner: str | None = None) -> dict[str, Any] | None:
         """Pobiera szczegóły pojazdu (z pamięci podręcznej lub z forum)."""
         now = time.monotonic()
         if not force and vuid in self._vehicle_details_cache:
             entry, ts = self._vehicle_details_cache[vuid]
             if now - ts < CACHE_TTL_SECONDS:
+                if owner and entry.get("owner") in (None, "", "—"):
+                    entry["owner"] = owner
                 return entry
 
         loop = asyncio.get_running_loop()
         detail = await loop.run_in_executor(None, self._sync_fetch_vehicle_detail, vuid)
         if detail:
+            if owner:
+                detail["owner"] = owner
+            elif detail.get("owner") in (None, "", "—") and self._cached_fleet:
+                for v in self._cached_fleet:
+                    if v.get("id") == vuid and v.get("owner"):
+                        detail["owner"] = v["owner"]
+                        break
             self._vehicle_details_cache[vuid] = (detail, now)
         return detail
