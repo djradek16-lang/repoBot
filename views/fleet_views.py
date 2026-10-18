@@ -1,6 +1,6 @@
 """
 Widoki Discord UI (przyciski, paginacja, select menu) dla modułu floty pojazdów Team77.
-Styl 1: Nowoczesne Karty 2-kolumnowe z badge'ami kategorii, paliwa i eleganckimi detalami.
+Generuje 2-kolumnową grafikę kart floty (Pillow) 1:1 zgodną z podglądem HTML/CSS.
 """
 
 from __future__ import annotations
@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 import discord
 from discord import ui
+
+from services.fleet_image_service import generate_fleet_cards_image
 
 if TYPE_CHECKING:
     from services.fleet_service import FleetService
@@ -39,6 +41,7 @@ def build_fleet_embed(
     page: int,
     total_pages: int,
     search_query: str | None = None,
+    has_image: bool = True,
 ) -> discord.Embed:
     """Tworzy ulepszony embed ze stroną floty organizacji w Stylu 1 (Karty 2-Kolumnowe)."""
     gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
@@ -69,20 +72,23 @@ def build_fleet_embed(
         embed.add_field(name="Brak wyników", value="Nie znaleziono pojazdów spełniających podane kryteria.", inline=False)
         return embed
 
-    for idx, v in enumerate(page_items, start_idx + 1):
-        cat_emoji = get_vehicle_emoji(v.get("model", ""))
-        fuel_badge = "⛽" if v.get("fuel") == "Benzyna" else "🛢️"
-        cap = f" ({v['capacity']})" if v.get("capacity") else ""
-        engine_str = f"{fuel_badge} {v.get('fuel', '—')}{cap}"
+    if has_image:
+        embed.set_image(url="attachment://flota.png")
+    else:
+        for idx, v in enumerate(page_items, start_idx + 1):
+            cat_emoji = get_vehicle_emoji(v.get("model", ""))
+            fuel_badge = "⛽" if v.get("fuel") == "Benzyna" else "🛢️"
+            cap = f" ({v['capacity']})" if v.get("capacity") else ""
+            engine_str = f"{fuel_badge} {v.get('fuel', '—')}{cap}"
 
-        embed.add_field(
-            name=f"{catEmoji if (catEmoji := cat_emoji) else '🚗'} #{v['id']} • {v['model']}",
-            value=(
-                f"> 👤 **Właściciel:** `{v['owner']}`\n"
-                f"> ⚙️ **Silnik:** {engine_str}"
-            ),
-            inline=True,
-        )
+            embed.add_field(
+                name=f"{cat_emoji} #{v['id']} • {v['model']}",
+                value=(
+                    f"> 👤 **Właściciel:** `{v['owner']}`\n"
+                    f"> ⚙️ **Silnik:** {engine_str}"
+                ),
+                inline=True,
+            )
 
     embed.set_footer(
         text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 ProjectRPG • Ostatnia synchronizacja: przed chwilą",
@@ -233,6 +239,15 @@ class FleetPaginationView(ui.View):
         self.total_pages = max(1, math.ceil(len(vehicles) / ITEMS_PER_PAGE))
         self._update_components()
 
+    def _render_page_items(self) -> tuple[discord.Embed, discord.File]:
+        """Tworzy embed oraz grafikę kart pojazdów dla bieżącej strony."""
+        start_idx = self.current_page * ITEMS_PER_PAGE
+        page_items = self.vehicles[start_idx : start_idx + ITEMS_PER_PAGE]
+        buf = generate_fleet_cards_image(page_items)
+        file = discord.File(buf, filename="flota.png")
+        embed = build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query, has_image=True)
+        return embed, file
+
     def _update_components(self) -> None:
         """Odświeża stan przycisków i selektora dla bieżącej strony."""
         self.clear_items()
@@ -261,36 +276,28 @@ class FleetPaginationView(ui.View):
         async def _first(interaction: discord.Interaction):
             self.current_page = 0
             self._update_components()
-            await interaction.response.edit_message(
-                embed=build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query),
-                view=self,
-            )
+            embed, file = self._render_page_items()
+            await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
         async def _prev(interaction: discord.Interaction):
             if self.current_page > 0:
                 self.current_page -= 1
             self._update_components()
-            await interaction.response.edit_message(
-                embed=build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query),
-                view=self,
-            )
+            embed, file = self._render_page_items()
+            await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
         async def _next(interaction: discord.Interaction):
             if self.current_page < self.total_pages - 1:
                 self.current_page += 1
             self._update_components()
-            await interaction.response.edit_message(
-                embed=build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query),
-                view=self,
-            )
+            embed, file = self._render_page_items()
+            await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
         async def _last(interaction: discord.Interaction):
             self.current_page = self.total_pages - 1
             self._update_components()
-            await interaction.response.edit_message(
-                embed=build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query),
-                view=self,
-            )
+            embed, file = self._render_page_items()
+            await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
         async def _refresh(interaction: discord.Interaction):
             await interaction.response.defer()
@@ -306,10 +313,8 @@ class FleetPaginationView(ui.View):
             self.total_pages = max(1, math.ceil(len(self.vehicles) / ITEMS_PER_PAGE))
             self.current_page = min(self.current_page, self.total_pages - 1)
             self._update_components()
-            await interaction.edit_original_response(
-                embed=build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query),
-                view=self,
-            )
+            embed, file = self._render_page_items()
+            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
 
         async def _show_stats(interaction: discord.Interaction):
             stats_embed = build_stats_embed(self.vehicles)

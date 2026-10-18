@@ -64,12 +64,12 @@ class FleetCog(commands.Cog, name="fleet"):
                 return
 
         view = FleetPaginationView(filtered, self.service, search_query=szukaj)
-        embed = build_fleet_embed(filtered, 0, view.total_pages, search_query=szukaj)
+        embed, file = view._render_page_items()
         
         if is_interaction:
-            await ctx_or_interaction.followup.send(embed=embed, view=view)
+            await ctx_or_interaction.followup.send(embed=embed, file=file, view=view)
         else:
-            await ctx_or_interaction.send(embed=embed, view=view)
+            await ctx_or_interaction.send(embed=embed, file=file, view=view)
 
     @commands.hybrid_command(
         name="flota",
