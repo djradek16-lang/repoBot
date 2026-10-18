@@ -17,7 +17,7 @@ from services.fleet_image_service import generate_fleet_cards_image
 if TYPE_CHECKING:
     from services.fleet_service import FleetService
 
-ITEMS_PER_PAGE = 5
+ITEMS_PER_PAGE = 4
 
 
 def get_vehicle_emoji(model_name: str) -> str:
@@ -41,7 +41,7 @@ def build_fleet_embed(
     page: int,
     total_pages: int,
     search_query: str | None = None,
-    has_image: bool = True,
+    image_filename: str | None = None,
 ) -> discord.Embed:
     """Tworzy ulepszony embed ze stroną floty organizacji w Stylu 1 (Karty 2-Kolumnowe)."""
     gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
