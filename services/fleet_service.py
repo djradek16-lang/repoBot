@@ -258,7 +258,7 @@ class FleetService:
         driver_ul = lists[1] if len(lists) >= 2 else (lists[0] if lists else "")
         if driver_ul:
             li_items = re.findall(r"<li class=[\'\"]ipsDataItem ipsType_break[\'\"]>(.*?)</li>", driver_ul, re.DOTALL)
-            for li in li_items[:5]:
+            for li in li_items[:20]:
                 strong_m = re.search(r"<strong>(.*?)</strong>", li, re.DOTALL)
                 raw_nick = strong_m.group(1) if strong_m else ""
                 nick = re.sub(r"<[^>]+>", "", raw_nick).strip().replace("\u2605", "*").replace("\u2606", "*")

@@ -174,6 +174,59 @@ def build_detail_embed(detail: dict[str, Any]) -> discord.Embed:
     return embed
 
 
+def build_drivers_embed(
+    detail: dict[str, Any],
+    author: discord.User | discord.Member | None = None,
+    thumbnail_url: str | None = None,
+) -> discord.Embed:
+    """Tworzy embed z listą do 20 ostatnich kierowców danego pojazdu wraz z datą i godziną."""
+    vuid = detail.get("id", "—")
+    model_name = detail.get("model", "Pojazd")
+    cat_emoji = get_vehicle_emoji(model_name)
+    owner = detail.get("owner", "—")
+    plate = detail.get("plate", "—")
+    mileage = detail.get("mileage", "—")
+
+    embed = discord.Embed(
+        title=f"{cat_emoji} Historia Kierowców #{vuid} • {model_name}",
+        url=detail.get("url"),
+        color=0xE67E22,
+    )
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
+
+    desc_header = (
+        f"• 👤 **Właściciel:** `{owner}`\n"
+        f"• 🚘 **Tablica:** `{plate}`  │  🛣️ **Przebieg:** `{mileage}`\n\n"
+        f"📋 **Ostatni kierowcy w grze:**\n"
+    )
+
+    drivers_list = detail.get("recent_drivers", [])
+    if drivers_list:
+        lines = []
+        for i, item in enumerate(drivers_list[:20], 1):
+            if isinstance(item, dict):
+                nick = item.get("nick", "Nieznany")
+                time_str = item.get("time", "")
+                t_suffix = f" — 🕒 `{time_str}`" if time_str else ""
+                lines.append(f"`{i:02d}.` **{nick}**{t_suffix}")
+            else:
+                lines.append(f"`{i:02d}.` `{item}`")
+        drivers_content = "\n".join(lines)
+    else:
+        last_d = detail.get("last_driver", "—")
+        drivers_content = f"• **{last_d}**" if last_d != "—" else "Brak danych o kierowcach."
+
+    embed.description = desc_header + drivers_content
+
+    footer_icon = author.display_avatar.url if author else None
+    embed.set_footer(
+        text=f"Baza pojazdów Team77 • VUID: #{vuid}",
+        icon_url=footer_icon,
+    )
+    return embed
+
+
 def build_stats_embed(vehicles: list[dict[str, Any]], thumbnail_url: str | None = None) -> discord.Embed:
     """Tworzy embed z kompleksowym raportem statystycznym floty Team77."""
     total_count = len(vehicles)
