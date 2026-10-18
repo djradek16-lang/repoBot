@@ -1,7 +1,7 @@
 """
 Moduł renderowania graficznego kart floty pojazdów Team77 (Pillow).
-Generuje dużą, wyraźną grafikę 2-kolumnową w wysokiej rozdzielczości (1200px)
-z ciemnym motywem Discorda, w 100% zgodną ze studiem podglądu.
+Generuje dużą, wyraźną grafikę w proporcjach (800x630), która w Discordzie
+wypełnia cały embed na wysokość i szerokość, zapewniając maksymalną czytelność.
 """
 
 from __future__ import annotations
@@ -38,47 +38,48 @@ def _load_font(size: int, bold: bool = False) -> ImageFont.ImageFont | ImageFont
 
 
 def _get_category_tag(model_name: str) -> str:
-    """Zwraca krótki tag kategorii dla modelu."""
+    """Zwraca czytelny tag kategorii dla danego modelu."""
     m = model_name.lower()
     if any(x in m for x in ("nrg", "fcr", "pcj", "bf-400", "sanchez", "freeway", "wayfarer")):
-        return "MOTO"
+        return "JEDNOŚLAD / MOTO"
     if any(x in m for x in ("dinghy", "speeder", "marquis", "jetmax", "tropic", "coastguard")):
-        return "ŁÓDŹ"
+        return "ŁÓDŹ MOTOROWA"
     if any(x in m for x in ("rancher", "huntley", "landstalker", "patriot", "mesa", "sandking", "yosemite")):
-        return "4x4 / SUV"
+        return "TERENOWY / 4x4"
     if any(x in m for x in ("benson", "mule", "yankee", "boxville", "rumpo", "burrito", "pony", "camper")):
-        return "DOSTAWCZY"
+        return "DOSTAWCZY / UTILITY"
     if any(x in m for x in ("sultan", "buffalo", "jester", "elegy", "euros", "cheetah", "bullet", "turismo", "infernus", "flash", "comet", "zr-350", "banshee", "sabre", "alpha", "zenith", "fortune")):
-        return "SPORT"
-    return "OSOBOWY"
+        return "SPORTOWY / COUPE"
+    return "OSOBOWY / SEDAN"
 
 
 def generate_fleet_cards_image(page_items: list[dict[str, Any]]) -> io.BytesIO:
     """
-    Renderuje duży obrazek PNG o szerokości 1200px z dużymi, czytelnymi
-    kartami w układzie 2 kolumn x 3 wiersze.
+    Renderuje duży obrazek PNG o proporcjach 800x630 (aspect ratio 1.27:1),
+    dzięki czemu w Discordzie nie jest ściśnięty w wąski pasek, lecz
+    wyświetla się w pełnym, ogromnym i czytelnym rozmiarze.
     """
-    width = 1200
-    num_rows = max(1, (len(page_items) + 1) // 2)
-    row_h = 138
+    width = 800
+    col_w = 380
+    row_h = 190
+    gap_x = 16
     gap_y = 16
-    margin_y = 16
-    height = margin_y * 2 + num_rows * row_h + (num_rows - 1) * gap_y
+    margin_x = 12
+    margin_y = 14
 
-    # Tło Discord #2b2d31 (ciemne)
-    img = Image.new("RGBA", (width, height), (43, 45, 49, 255))
+    num_rows = max(1, (len(page_items) + 1) // 2)
+    height = margin_y * 2 + num_rows * row_h + max(0, num_rows - 1) * gap_y
+
+    # Tło Discord #2b2d31
+    img = Image.new("RGBA", (width, height), (38, 40, 44, 255))
     draw = ImageDraw.Draw(img)
 
     font_title = _load_font(21, bold=True)
-    font_id = _load_font(16, bold=True)
-    font_meta = _load_font(15, bold=False)
-    font_bold = _load_font(15, bold=True)
-    font_tag = _load_font(14, bold=True)
-    font_cat = _load_font(11, bold=True)
-
-    col_w = 572
-    gap_x = 24
-    margin_x = 16
+    font_id = _load_font(18, bold=True)
+    font_cat = _load_font(12, bold=False)
+    font_label = _load_font(15, bold=False)
+    font_val = _load_font(15, bold=True)
+    font_badge = _load_font(14, bold=True)
 
     for idx, v in enumerate(page_items[:6]):
         col = idx % 2
@@ -86,83 +87,71 @@ def generate_fleet_cards_image(page_items: list[dict[str, Any]]) -> io.BytesIO:
         x = margin_x + col * (col_w + gap_x)
         y = margin_y + row * (row_h + gap_y)
 
-        # Ciemny kafelek pojazdu (#1e1f22) z zaokrąglonymi rogami
+        # Ciemny, duży kafelek pojazdu
         draw.rounded_rectangle(
             [x, y, x + col_w, y + row_h],
             radius=12,
-            fill=(30, 31, 34, 255),
-            outline=(255, 255, 255, 22),
+            fill=(26, 27, 30, 255),
+            outline=(255, 255, 255, 28),
             width=2,
         )
 
         # Pomarańczowy pasek akcentowy Team77 z lewej strony
         draw.rounded_rectangle(
-            [x, y + 6, x + 5, y + row_h - 6],
+            [x, y + 6, x + 6, y + row_h - 6],
             radius=3,
             fill=(243, 156, 18, 255),
         )
 
-        # Nazwa modelu
-        model_name = str(v.get("model", "Pojazd"))[:24]
-        draw.text((x + 20, y + 16), model_name, fill=(245, 246, 248), font=font_title)
+        # Nazwa modelu pojazdu
+        model_name = str(v.get("model", "Pojazd"))[:22]
+        draw.text((x + 18, y + 16), model_name, fill=(255, 255, 255), font=font_title)
 
-        # Kategoria tag tuż za nazwą
-        cat_tag = _get_category_tag(model_name)
-        bbox = draw.textbbox((x + 20, y + 16), model_name, font=font_title)
-        cat_x = bbox[2] + 12
-        cat_y = y + 19
-        cat_w = len(cat_tag) * 7 + 12
-        draw.rounded_rectangle(
-            [cat_x, cat_y, cat_x + cat_w, cat_y + 18],
-            radius=3,
-            fill=(255, 255, 255, 15),
-            outline=(255, 255, 255, 30),
-            width=1,
-        )
-        draw.text((cat_x + 6, cat_y + 2), cat_tag, fill=(185, 190, 198), font=font_cat)
+        # Podtytuł z kategorią
+        cat = _get_category_tag(model_name)
+        draw.text((x + 18, y + 46), f"Kategoria: {cat}", fill=(130, 136, 145), font=font_cat)
 
-        # Złoty Badge VUID po prawej stronie na górze
-        vuid_str = f"#{v.get('id', '')}"
-        badge_w = max(76, len(vuid_str) * 11 + 16)
-        badge_h = 28
-        badge_x = x + col_w - badge_w - 18
-        badge_y = y + 14
+        # Złoty badge VUID na górze po prawej
+        vuid = f"#{v.get('id', '')}"
+        badge_w = max(80, len(vuid) * 12 + 18)
         draw.rounded_rectangle(
-            [badge_x, badge_y, badge_x + badge_w, badge_y + badge_h],
+            [x + col_w - badge_w - 16, y + 14, x + col_w - 16, y + 46],
             radius=6,
-            fill=(243, 156, 18, 40),
-            outline=(243, 156, 18, 120),
+            fill=(243, 156, 18, 45),
+            outline=(243, 156, 18, 140),
             width=2,
         )
-        draw.text((badge_x + 10, badge_y + 4), vuid_str, fill=(243, 156, 18), font=font_id)
+        draw.text((x + col_w - badge_w - 6, y + 19), vuid, fill=(243, 156, 18), font=font_id)
 
-        # Właściciel (oczyszczanie ze znaków specjalnych niedostępnych w standardowych fontach)
-        raw_owner = str(v.get("owner", "—")).replace("★", "*").replace("☆", "*")[:24]
-        draw.text((x + 20, y + 58), "Właściciel:", fill=(155, 162, 172), font=font_meta)
-        draw.text((x + 115, y + 58), raw_owner, fill=(230, 232, 236), font=font_bold)
+        # Linia podziału wewnątrz kafelka
+        draw.line([x + 18, y + 74, x + col_w - 18, y + 74], fill=(255, 255, 255, 18), width=1)
+
+        # Właściciel
+        owner = str(v.get("owner", "—")).replace("★", "*").replace("☆", "*")[:20]
+        draw.text((x + 18, y + 90), "Właściciel:", fill=(155, 162, 172), font=font_label)
+        draw.text((x + 115, y + 90), owner, fill=(240, 242, 245), font=font_val)
 
         # Silnik i rodzaj paliwa
-        draw.text((x + 20, y + 92), "Silnik:", fill=(155, 162, 172), font=font_meta)
-
         fuel = str(v.get("fuel", "Benzyna"))
         cap = str(v.get("capacity", "")).strip()
         fuel_str = f"{fuel} ({cap})" if cap else fuel
-
         is_gas = "benz" in fuel.lower()
-        tag_bg = (243, 156, 18, 35) if is_gas else (52, 152, 219, 35)
-        tag_border = (243, 156, 18, 90) if is_gas else (52, 152, 219, 90)
-        tag_color = (243, 156, 18) if is_gas else (52, 152, 219)
 
-        tag_w = max(140, len(fuel_str) * 9 + 20)
-        tag_h = 28
+        draw.text((x + 18, y + 126), "Silnik:", fill=(155, 162, 172), font=font_label)
+
+        tag_bg = (243, 156, 18, 40) if is_gas else (52, 152, 219, 40)
+        tag_border = (243, 156, 18, 110) if is_gas else (52, 152, 219, 110)
+        tag_color = (243, 156, 18) if is_gas else (52, 152, 219)
+        tag_w = max(140, len(fuel_str) * 9 + 22)
+
         draw.rounded_rectangle(
-            [x + 115, y + 88, x + 115 + tag_w, y + 88 + tag_h],
+            [x + 115, y + 122, x + 115 + tag_w, y + 154],
             radius=6,
             fill=tag_bg,
             outline=tag_border,
             width=2,
         )
-        draw.text((x + 125, y + 92), fuel_str, fill=tag_color, font=font_tag)
+        draw.text((x + 126, y + 128), fuel_str, fill=tag_color, font=font_badge)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
