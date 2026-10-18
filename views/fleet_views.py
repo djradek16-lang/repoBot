@@ -58,7 +58,7 @@ def build_fleet_embed(
         description=(
             f"{stats_line}\n"
             f"Oficjalna baza pobrana na żywo z **[ProjectRPG.pl/vehicles](https://projectrpg.pl/vehicles/)**.\n"
-            f"> 💡 *Wybierz pojazd poniżej, aby sprawdzić tuning.*"
+            f"-# 💡 *Wybierz pojazd z poniższego menu, aby wyświetlić tuning i historię.*"
         ),
         color=0xE67E22,
     )
