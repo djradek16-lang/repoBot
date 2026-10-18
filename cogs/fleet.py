@@ -2,6 +2,7 @@
 Moduł floty pojazdów organizacji Team77 (ProjectRPG / MTA:SA).
 Pobiera i wyświetla na żywo spis pojazdów należących do organizacji z oficjalnej
 bazy pojazdów ProjectRPG (https://projectrpg.pl/vehicles/).
+Obsługuje zarówno komendy slash (/flota), komendy hybrydowe, jak i komendy z prefiksem (!flota).
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from views.fleet_views import FleetPaginationView, build_detail_embed, build_fle
 logger = logging.getLogger("AegisBot.Cogs.Fleet")
 
 
-class FleetCog(commands.Cog):
+class FleetCog(commands.Cog, name="fleet"):
     """Komendy przeglądania floty pojazdów organizacji Team77."""
 
     def __init__(self, bot: commands.Bot) -> None:
@@ -28,24 +29,20 @@ class FleetCog(commands.Cog):
         self.service = FleetService()
         self.bot.fleet_service = self.service
 
-    @app_commands.command(
-        name="flota",
-        description="Wyświetl listę pojazdów należących do organizacji Team77 z bazy forum ProjectRPG.",
-    )
-    @app_commands.describe(
-        szukaj="Filtruj po ID pojazdu, nazwie modelu (np. Sultan, Buffalo) lub nicku właściciela",
-    )
-    async def cmd_flota(self, interaction: discord.Interaction, szukaj: Optional[str] = None) -> None:
-        """Pobiera i wyświetla flotę Team77 z forum."""
-        await interaction.response.defer()
-
+    async def _show_fleet(self, ctx_or_interaction: commands.Context | discord.Interaction, szukaj: Optional[str] = None) -> None:
+        """Wspólna logika wyświetlania floty dla slash i prefix commands."""
+        is_interaction = isinstance(ctx_or_interaction, discord.Interaction)
+        
         vehicles = await self.service.get_fleet(organization="Team77")
         if not vehicles:
-            await interaction.followup.send(
+            msg = (
                 "❌ Nie udało się pobrać floty z forum ProjectRPG. "
-                "Upewnij się, że ciasteczka sesji forum w konfiguracji bota są aktualne.",
-                ephemeral=True,
+                "Upewnij się, że ciasteczka sesji forum w konfiguracji bota są aktualne."
             )
+            if is_interaction:
+                await ctx_or_interaction.followup.send(msg, ephemeral=True)
+            else:
+                await ctx_or_interaction.send(msg)
             return
 
         filtered = vehicles
@@ -56,50 +53,83 @@ class FleetCog(commands.Cog):
                 if q in str(v["id"]) or q in v["model"].lower() or q in v["owner"].lower() or q in v.get("fuel", "").lower()
             ]
             if not filtered:
-                await interaction.followup.send(
+                msg = (
                     f"🔍 Nie znaleziono żadnego pojazdu pasującego do zapytania: `{szukaj}`.\n"
-                    f"Wpisz `/flota` bez parametrów, aby zobaczyć całą flotę ({len(vehicles)} pojazdów).",
-                    ephemeral=True,
+                    f"Wpisz `/flota` lub `!flota` bez parametrów, aby zobaczyć całą flotę ({len(vehicles)} pojazdów)."
                 )
+                if is_interaction:
+                    await ctx_or_interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await ctx_or_interaction.send(msg)
                 return
 
         view = FleetPaginationView(filtered, self.service, search_query=szukaj)
         embed = build_fleet_embed(filtered, 0, view.total_pages, search_query=szukaj)
-        await interaction.followup.send(embed=embed, view=view)
+        
+        if is_interaction:
+            await ctx_or_interaction.followup.send(embed=embed, view=view)
+        else:
+            await ctx_or_interaction.send(embed=embed, view=view)
 
-    @app_commands.command(
+    @commands.hybrid_command(
+        name="flota",
+        aliases=["pojazdy", "fleet"],
+        description="Wyświetl listę pojazdów należących do organizacji Team77 z bazy forum ProjectRPG.",
+    )
+    @app_commands.describe(
+        szukaj="Filtruj po ID pojazdu, nazwie modelu (np. Sultan, Buffalo) lub nicku właściciela",
+    )
+    async def cmd_flota(self, ctx: commands.Context, *, szukaj: Optional[str] = None) -> None:
+        """Pobiera i wyświetla flotę Team77 z forum (działa jako /flota oraz !flota)."""
+        await ctx.defer()
+        if ctx.interaction:
+            await self._show_fleet(ctx.interaction, szukaj)
+        else:
+            await self._show_fleet(ctx, szukaj)
+
+    @commands.hybrid_command(
         name="pojazd_info",
+        aliases=["pojazd", "vuid"],
         description="Sprawdź szczegółowe dane, tuning i historię kierowców pojazdu z bazy ProjectRPG.",
     )
     @app_commands.describe(vuid="ID (VUID) pojazdu w świecie gry (np. 1930, 10811)")
-    async def cmd_pojazd_info(self, interaction: discord.Interaction, vuid: int) -> None:
+    async def cmd_pojazd_info(self, ctx: commands.Context, vuid: int) -> None:
         """Pobiera pełną specyfikację danego pojazdu z bazy forum."""
-        await interaction.response.defer()
+        await ctx.defer()
 
         detail = await self.service.get_vehicle_detail(vuid)
         if not detail:
-            await interaction.followup.send(
-                f"❌ Nie znaleziono danych dla pojazdu o VUID **#{vuid}** lub wystąpił błąd połączenia z forum.",
-                ephemeral=True,
-            )
+            msg = f"❌ Nie znaleziono danych dla pojazdu o VUID **#{vuid}** lub wystąpił błąd połączenia z forum."
+            if ctx.interaction:
+                await ctx.interaction.followup.send(msg, ephemeral=True)
+            else:
+                await ctx.send(msg)
             return
 
         embed = build_detail_embed(detail)
         view = discord.ui.View()
         view.add_item(discord.ui.Button(label="Otwórz na Forum", url=detail["url"], emoji="🔗"))
-        await interaction.followup.send(embed=embed, view=view)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed, view=view)
+        else:
+            await ctx.send(embed=embed, view=view)
 
-    @app_commands.command(
+    @commands.hybrid_command(
         name="flota_statystyki",
+        aliases=["flotastat", "fleetstats"],
         description="Wyświetl statystyki floty Team77: najpopularniejsze modele, rodzaje silników i właścicieli.",
     )
-    async def cmd_flota_statystyki(self, interaction: discord.Interaction) -> None:
+    async def cmd_flota_statystyki(self, ctx: commands.Context) -> None:
         """Generuje raport statystyczny floty Team77."""
-        await interaction.response.defer()
+        await ctx.defer()
 
         vehicles = await self.service.get_fleet(organization="Team77")
         if not vehicles:
-            await interaction.followup.send("❌ Brak danych o flocie. Spróbuj ponownie później.", ephemeral=True)
+            msg = "❌ Brak danych o flocie. Spróbuj ponownie później."
+            if ctx.interaction:
+                await ctx.interaction.followup.send(msg, ephemeral=True)
+            else:
+                await ctx.send(msg)
             return
 
         total_count = len(vehicles)
@@ -126,7 +156,10 @@ class FleetCog(commands.Cog):
             text="Baza pojazdów ProjectRPG.pl • Team77",
             icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
         )
-        await interaction.followup.send(embed=embed)
+        if ctx.interaction:
+            await ctx.interaction.followup.send(embed=embed)
+        else:
+            await ctx.send(embed=embed)
 
 
 async def setup(bot: commands.Bot) -> None:

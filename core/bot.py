@@ -39,7 +39,7 @@ class AegisBot(commands.Bot):
         )
 
         super().__init__(
-            command_prefix=commands.when_mentioned,
+            command_prefix=commands.when_mentioned_or("!", "?"),
             intents=intents,
             allowed_mentions=allowed_mentions,
             help_command=None

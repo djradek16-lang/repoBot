@@ -230,5 +230,128 @@ class OwnerCog(commands.Cog):
             )
             await interaction.response.send_message(embed=success_embed("Dodano do Blacklisty", f"ID `{eid}` zostało wpisane na czarną listę z powodem: *{reason}*."))
 
+    def _is_owner_or_admin(self, ctx: commands.Context) -> bool:
+        if ctx.author.id == config.OWNER_ID:
+            return True
+        if ctx.guild and (ctx.author.guild_permissions.administrator or ctx.author.id == ctx.guild.owner_id):
+            return True
+        return False
+
+    @commands.command(name="sync", help="Wymusza pełną synchronizację komend slash z Discord API.")
+    async def prefix_sync(self, ctx: commands.Context) -> None:
+        """Prefiksowa wersja !sync dla właściciela/administratora."""
+        if not self._is_owner_or_admin(ctx):
+            return
+        status_msg = await ctx.send("⏳ Trwa natychmiastowa synchronizacja komend slash...")
+        try:
+            if ctx.guild:
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                synced_guild = await self.bot.tree.sync(guild=ctx.guild)
+                logger.info("Błyskawicznie zsynchronizowano %s komend dla gildii %s.", len(synced_guild), ctx.guild.id)
+            synced = await self.bot.tree.sync()
+            await status_msg.edit(
+                content=(
+                    f"✅ Zsynchronizowano **{len(synced)}** komend slash globalnie oraz natychmiastowo na tym serwerze!\n"
+                    f"Komendy `/flota`, `/pojazd_info` oraz `!flota` są już aktywne.\n"
+                    f"*(Jeśli komenda `/flota` jeszcze nie podpowiada się na liście ukośnika, wciśnij `Ctrl + R` w aplikacji Discord)*"
+                )
+            )
+        except Exception as e:
+            await status_msg.edit(content=f"❌ Błąd synchronizacji: {e}")
+
+    @commands.command(name="gitpull", aliases=["pull", "git_pull"], help="Pobiera najnowsze zmiany z repozytorium GitHub na serwer.")
+    async def prefix_gitpull(self, ctx: commands.Context) -> None:
+        """Prefiksowa wersja !gitpull pobierająca zmiany na żywo na hoście."""
+        if not self._is_owner_or_admin(ctx):
+            return
+        status_msg = await ctx.send("🔄 Trwa pobieranie aktualizacji z Gita (`git pull`)...")
+        try:
+            discard_proc = await asyncio.create_subprocess_exec(
+                "git", "checkout", "--", ".",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(config.BASE_DIR)
+            )
+            await discard_proc.communicate()
+
+            proc = await asyncio.create_subprocess_exec(
+                "git", "pull",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(config.BASE_DIR)
+            )
+            stdout, stderr = await proc.communicate()
+            out_text = stdout.decode("utf-8", errors="replace").strip()
+            err_text = stderr.decode("utf-8", errors="replace").strip()
+
+            if proc.returncode != 0:
+                await status_msg.edit(content=f"❌ Błąd `git pull`:\n```{err_text or out_text}```")
+                return
+
+            views_to_clear = [m for m in sys.modules if m.startswith("views.") or m == "views"]
+            for mod in views_to_clear:
+                del sys.modules[mod]
+
+            reloaded = []
+            failed = []
+            for ext in list(self.bot.extensions.keys()):
+                try:
+                    await self.bot.reload_extension(ext)
+                    reloaded.append(ext)
+                except Exception as re_err:
+                    failed.append(f"{ext}: {re_err}")
+
+            if ctx.guild:
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                await self.bot.tree.sync(guild=ctx.guild)
+
+            res_text = (
+                f"✅ **Aktualizacja Git zakończona sukcesem!**\n"
+                f"```{out_text or 'Brak zmian (Already up to date)'}```\n"
+                f"🔄 Przeładowano **{len(reloaded)}** modułów Cog.\n"
+                f"Błyskawicznie zsynchronizowano komendy dla tego serwera!"
+            )
+            if failed:
+                res_text += f"\n⚠️ Błędy przeładowania:\n" + "\n".join(failed)
+
+            await status_msg.edit(content=res_text)
+        except Exception as e:
+            await status_msg.edit(content=f"❌ Wyjątek podczas aktualizacji: {e}")
+
+    @commands.command(name="reload", help="Przeładowuje moduły Cog.")
+    async def prefix_reload(self, ctx: commands.Context, cog_name: str = "all") -> None:
+        """Prefiksowa wersja !reload dla modułów."""
+        if not self._is_owner_or_admin(ctx):
+            return
+        views_to_clear = [m for m in sys.modules if m.startswith("views.") or m == "views"]
+        for mod in views_to_clear:
+            del sys.modules[mod]
+
+        if cog_name.lower() == "all":
+            reloaded = []
+            failed = []
+            for ext in list(self.bot.extensions.keys()):
+                try:
+                    await self.bot.reload_extension(ext)
+                    reloaded.append(ext)
+                except Exception as e:
+                    failed.append(f"{ext}: {e}")
+            msg = f"🔄 Przeładowano **{len(reloaded)}** modułów Cog."
+            if failed:
+                msg += f"\n⚠️ Błędy:\n" + "\n".join(failed)
+            await ctx.send(msg)
+        else:
+            name = cog_name if cog_name.startswith("cogs.") else f"cogs.{cog_name}"
+            try:
+                if name in self.bot.extensions:
+                    await self.bot.reload_extension(name)
+                    await ctx.send(f"✅ Przeładowano moduł `{name}`.")
+                else:
+                    await self.bot.load_extension(name)
+                    await ctx.send(f"✅ Załadowano nowy moduł `{name}`.")
+            except Exception as e:
+                await ctx.send(f"❌ Błąd podczas ładowania `{name}`: `{e}`")
+
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(OwnerCog(bot))
