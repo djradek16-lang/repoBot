@@ -41,9 +41,10 @@ def build_fleet_embed(
     page: int,
     total_pages: int,
     search_query: str | None = None,
-    image_filename: str | None = None,
+    image_filename: str | None = "flota.png",
+    has_image: bool = True,
 ) -> discord.Embed:
-    """Tworzy ulepszony embed ze stroną floty organizacji w Stylu 1 (Karty 2-Kolumnowe)."""
+    """Tworzy ulepszony embed ze stroną floty organizacji z wielkimi banerami kart."""
     gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
     diesel_count = sum(1 for x in vehicles if x.get("fuel") == "Diesel")
     other_count = len(vehicles) - gas_count - diesel_count
@@ -72,8 +73,8 @@ def build_fleet_embed(
         embed.add_field(name="Brak wyników", value="Nie znaleziono pojazdów spełniających podane kryteria.", inline=False)
         return embed
 
-    if has_image:
-        embed.set_image(url="attachment://flota.png")
+    if has_image and image_filename:
+        embed.set_image(url=f"attachment://{image_filename}")
     else:
         for idx, v in enumerate(page_items, start_idx + 1):
             cat_emoji = get_vehicle_emoji(v.get("model", ""))
@@ -240,12 +241,14 @@ class FleetPaginationView(ui.View):
         self._update_components()
 
     def _render_page_items(self) -> tuple[discord.Embed, discord.File]:
-        """Tworzy embed oraz grafikę kart pojazdów dla bieżącej strony."""
+        """Tworzy embed oraz grafikę kart pojazdów dla bieżącej strony z unikalną nazwą pliku (anti-cache)."""
+        import time
         start_idx = self.current_page * ITEMS_PER_PAGE
         page_items = self.vehicles[start_idx : start_idx + ITEMS_PER_PAGE]
         buf = generate_fleet_cards_image(page_items)
-        file = discord.File(buf, filename="flota.png")
-        embed = build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query, has_image=True)
+        fname = f"flota_p{self.current_page}_{int(time.time() * 1000)}.png"
+        file = discord.File(buf, filename=fname)
+        embed = build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query, image_filename=fname, has_image=True)
         return embed, file
 
     def _update_components(self) -> None:
