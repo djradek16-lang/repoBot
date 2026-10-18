@@ -44,6 +44,7 @@ def build_fleet_embed(
     image_filename: str | None = "flota.png",
     has_image: bool = True,
     thumbnail_url: str | None = None,
+    author: discord.User | discord.Member | None = None,
 ) -> discord.Embed:
     """Tworzy ulepszony embed ze stroną floty organizacji z wielkimi banerami kart."""
     gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
@@ -95,9 +96,10 @@ def build_fleet_embed(
                 inline=True,
             )
 
+    avatar_url = author.display_avatar.url if author else "https://projectrpg.pl/uploads/monthly_2021_04/logo.png"
     embed.set_footer(
         text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 ProjectRPG • Ostatnia synchronizacja: przed chwilą",
-        icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
+        icon_url=avatar_url,
     )
     return embed
 
@@ -238,6 +240,7 @@ class FleetPaginationView(ui.View):
         search_query: str | None = None,
         guild: discord.Guild | None = None,
         thumbnail_url: str | None = None,
+        author: discord.User | discord.Member | None = None,
         timeout: float = 300,
     ) -> None:
         super().__init__(timeout=timeout)
@@ -246,6 +249,7 @@ class FleetPaginationView(ui.View):
         self.search_query = search_query
         self.guild = guild
         self.thumbnail_url = thumbnail_url or (guild.icon.url if guild and guild.icon else None)
+        self.author = author
         self.current_page = 0
         self.total_pages = max(1, math.ceil(len(vehicles) / ITEMS_PER_PAGE))
         self._update_components()
@@ -266,11 +270,12 @@ class FleetPaginationView(ui.View):
             image_filename=fname,
             has_image=True,
             thumbnail_url=self.thumbnail_url,
+            author=self.author,
         )
         return embed, file
 
     def _update_components(self) -> None:
-        """Odświeża stan przycisków i selektora dla bieżącej strony."""
+        """Odświeża stan przycisków nawigacji i selektora dla bieżącej strony."""
         self.clear_items()
 
         # Przyciski nawigacji
@@ -291,8 +296,6 @@ class FleetPaginationView(ui.View):
             style=discord.ButtonStyle.secondary,
             disabled=(self.current_page >= self.total_pages - 1),
         )
-        btn_refresh = ui.Button(label="Odśwież 🔄", style=discord.ButtonStyle.success)
-        btn_stats = ui.Button(label="Statystyki 📊", style=discord.ButtonStyle.secondary)
 
         async def _first(interaction: discord.Interaction):
             self.current_page = 0
@@ -320,41 +323,16 @@ class FleetPaginationView(ui.View):
             embed, file = self._render_page_items()
             await interaction.response.edit_message(embed=embed, attachments=[file], view=self)
 
-        async def _refresh(interaction: discord.Interaction):
-            await interaction.response.defer()
-            refreshed = await self.fleet_service.get_fleet(organization="Team77", force_refresh=True)
-            if self.search_query:
-                q = self.search_query.lower()
-                self.vehicles = [
-                    v for v in refreshed
-                    if q in str(v["id"]) or q in v["model"].lower() or q in v["owner"].lower()
-                ]
-            else:
-                self.vehicles = refreshed
-            self.total_pages = max(1, math.ceil(len(self.vehicles) / ITEMS_PER_PAGE))
-            self.current_page = min(self.current_page, self.total_pages - 1)
-            self._update_components()
-            embed, file = self._render_page_items()
-            await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
-
-        async def _show_stats(interaction: discord.Interaction):
-            stats_embed = build_stats_embed(self.vehicles, thumbnail_url=self.thumbnail_url)
-            await interaction.response.send_message(embed=stats_embed, ephemeral=True)
-
         btn_first.callback = _first
         btn_prev.callback = _prev
         btn_next.callback = _next
         btn_last.callback = _last
-        btn_refresh.callback = _refresh
-        btn_stats.callback = _show_stats
 
         self.add_item(btn_first)
         self.add_item(btn_prev)
         self.add_item(btn_counter)
         self.add_item(btn_next)
         self.add_item(btn_last)
-        self.add_item(btn_refresh)
-        self.add_item(btn_stats)
 
         # Select menu dla bieżącej strony
         start_idx = self.current_page * ITEMS_PER_PAGE

@@ -63,12 +63,20 @@ class FleetCog(commands.Cog, name="fleet"):
                     await ctx_or_interaction.send(msg)
                 return
 
+        author = ctx_or_interaction.user if is_interaction else ctx_or_interaction.author
         guild = ctx_or_interaction.guild
         thumb = guild.icon.url if guild and guild.icon else None
         if not thumb and self.bot.user and self.bot.user.display_avatar:
             thumb = self.bot.user.display_avatar.url
 
-        view = FleetPaginationView(filtered, self.service, search_query=szukaj, guild=guild, thumbnail_url=thumb)
+        view = FleetPaginationView(
+            filtered,
+            self.service,
+            search_query=szukaj,
+            guild=guild,
+            thumbnail_url=thumb,
+            author=author,
+        )
         embed, file = view._render_page_items()
         
         if is_interaction:
