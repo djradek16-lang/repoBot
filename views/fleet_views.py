@@ -59,7 +59,7 @@ def build_fleet_embed(
         )
 
     embed.set_footer(
-        text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 MTA:SA ProjectRPG",
+        text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 ProjectRPG",
         icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
     )
     return embed
