@@ -143,6 +143,15 @@ class AegisBot(commands.Bot):
         # Wypisanie bezpośrednio na stdout dla panelu Pterodactyl / Gamehost (Startup Done Trigger)
         print(f"Bot is ready! Logged in as {user_name}. Started successfully. [Done]", flush=True)
 
+        # Natychmiastowa synchronizacja komend dla każdego połączonego serwera (omija 1h opóźnienie globalne Discorda)
+        for guild in self.guilds:
+            try:
+                self.tree.copy_global_to(guild=guild)
+                synced_guild = await self.tree.sync(guild=guild)
+                logger.info(f"Błyskawicznie zsynchronizowano {len(synced_guild)} komend dla serwera: {guild.name} ({guild.id}).")
+            except Exception as e:
+                logger.debug(f"Pominięto natychmiastową synchronizację dla {guild.id}: {e}")
+
         if not self.rotate_status.is_running():
             self.rotate_status.start()
 

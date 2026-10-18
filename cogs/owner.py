@@ -134,8 +134,18 @@ class OwnerCog(commands.Cog):
     async def sync_commands(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(ephemeral=True)
         try:
+            if interaction.guild:
+                self.bot.tree.copy_global_to(guild=interaction.guild)
+                synced_guild = await self.bot.tree.sync(guild=interaction.guild)
+                logger.info("Błyskawicznie zsynchronizowano %s komend dla tej gildii.", len(synced_guild))
             synced = await self.bot.tree.sync()
-            await interaction.followup.send(embed=success_embed("Synchronizacja Slash Commands", f"Zsynchronizowano **{len(synced)}** komend slash globalnie."))
+            await interaction.followup.send(
+                embed=success_embed(
+                    "Synchronizacja Slash Commands",
+                    f"✅ Zsynchronizowano **{len(synced)}** komend slash globalnie oraz **błyskawicznie na tym serwerze**!\n"
+                    "Nowe komendy (w tym `/flota`) powinny być widoczne od razu (jeśli nie, wciśnij `Ctrl + R` na Discordzie).",
+                )
+            )
         except Exception as e:
             await interaction.followup.send(embed=error_embed("Błąd Synchronizacji", f"Wystąpił błąd: {e}"))
 
