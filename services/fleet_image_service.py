@@ -18,7 +18,7 @@ def _load_font(size: int, bold: bool = False) -> ImageFont.ImageFont | ImageFont
     bundled_font = os.path.join(base_dir, "assets", "fonts", "arialbd.ttf" if bold else "arial.ttf")
 
     candidates = [
-        # Dedykowane fonty w projekcie (zawsze dostępne w repo)
+        # Dedykowane fontya w projekcie (zawsze dostępne w repo)
         bundled_font,
         "assets/fonts/arialbd.ttf" if bold else "assets/fonts/arial.ttf",
         # Linux (Debian / Ubuntu / Docker / GameHost)
