@@ -14,7 +14,13 @@ from PIL import Image, ImageDraw, ImageFont
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
     """Ładuje najlepszy dostępny font systemowy z fallbackiem do domyślnego."""
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundled_font = os.path.join(base_dir, "assets", "fonts", "arialbd.ttf" if bold else "arial.ttf")
+
     candidates = [
+        # Dedykowane fonty w projekcie (zawsze dostępne w repo)
+        bundled_font,
+        "assets/fonts/arialbd.ttf" if bold else "assets/fonts/arial.ttf",
         # Linux (Debian / Ubuntu / Docker / GameHost)
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/TTF/DejaVuSans.ttf",

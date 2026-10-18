@@ -37,8 +37,11 @@ class OwnerCog(commands.Cog):
     async def reload_cog(self, interaction: discord.Interaction, cog_name: str) -> None:
         await interaction.response.defer(ephemeral=True)
 
-        views_to_clear = [m for m in sys.modules if m.startswith("views.") or m == "views"]
-        for mod in views_to_clear:
+        modules_to_clear = [
+            m for m in sys.modules
+            if m.startswith("views.") or m == "views" or m.startswith("services.") or m == "services"
+        ]
+        for mod in modules_to_clear:
             del sys.modules[mod]
 
         if cog_name.lower() == "all":
@@ -105,8 +108,11 @@ class OwnerCog(commands.Cog):
             msg = f"**Wynik `git pull`:**\n```\n{out_text or 'Brak zmian (Already up to date).'}\n```"
 
             if reload_after:
-                views_to_clear = [m for m in sys.modules if m.startswith("views.") or m == "views"]
-                for mod in views_to_clear:
+                modules_to_clear = [
+                    m for m in sys.modules
+                    if m.startswith("views.") or m == "views" or m.startswith("services.") or m == "services"
+                ]
+                for mod in modules_to_clear:
                     del sys.modules[mod]
                 reloaded = []
                 failed = []
