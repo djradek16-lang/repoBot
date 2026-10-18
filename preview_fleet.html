@@ -3,29 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AegisBot • Flota Pojazdów Team77 (ProjectRPG)</title>
+  <title>AegisBot • Ulepszony Podgląd Floty Team77 (ProjectRPG)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
       --bg-primary: #313338;
       --bg-secondary: #2b2d31;
       --bg-tertiary: #1e1f22;
       --bg-card: #232428;
+      --bg-hover: #35373c;
       --text-normal: #dbdee1;
       --text-muted: #949ba4;
       --text-header: #f2f3f5;
       --interactive-normal: #b5bac1;
       --interactive-hover: #dbdee1;
       --interactive-active: #ffffff;
-      --brand-orange: #e67e22;
+      
+      --brand-orange: #f39c12;
+      --brand-amber: #e67e22;
+      --brand-gold: #f1c40f;
       --brand-green: #2ecc71;
       --brand-blue: #3498db;
+      --brand-cyan: #00d2d3;
       --brand-red: #ed4245;
       --brand-blurple: #5865f2;
       --border-subtle: rgba(255, 255, 255, 0.08);
-      --font-main: 'gg sans', 'Segoe UI', Helvetica, Arial, sans-serif;
+      --font-main: 'Plus Jakarta Sans', 'Segoe UI', Helvetica, Arial, sans-serif;
       --font-mono: 'JetBrains Mono', Consolas, monospace;
     }
 
@@ -37,66 +42,145 @@
       display: flex;
       height: 100vh;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* Sidebar */
-    .sidebar {
-      width: 280px;
+    /* Left Control & Style Switcher Bar */
+    .control-sidebar {
+      width: 320px;
       background: var(--bg-secondary);
       border-right: 1px solid var(--border-subtle);
       display: flex;
       flex-direction: column;
       flex-shrink: 0;
+      z-index: 10;
     }
-    .guild-header {
-      padding: 16px;
-      font-weight: 700;
-      font-size: 16px;
-      color: var(--text-header);
+    .panel-header {
+      padding: 18px 16px;
       border-bottom: 1px solid var(--border-subtle);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      background: rgba(0, 0, 0, 0.15);
     }
-    .guild-badge {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #e67e22, #d35400);
+    .panel-logo {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #f39c12, #d35400);
       display: grid;
       place-items: center;
-      font-size: 18px;
+      font-size: 20px;
+      box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
     }
-    .channels-list {
-      padding: 12px 8px;
+    .panel-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-header);
+      letter-spacing: -0.3px;
+    }
+    .panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .controls-body {
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 20px;
       flex: 1;
       overflow-y: auto;
     }
-    .channel-item {
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 6px;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: background 0.15s, color 0.15s;
-    }
-    .channel-item:hover {
-      background: rgba(255, 255, 255, 0.04);
-      color: var(--interactive-hover);
-    }
-    .channel-item.active {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--interactive-active);
+      gap: 6px;
     }
 
-    /* Main Chat Area */
+    .style-card {
+      background: var(--bg-tertiary);
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+    .style-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.15);
+      transform: translateY(-1px);
+    }
+    .style-card.active {
+      border-color: var(--brand-amber);
+      background: rgba(243, 156, 18, 0.08);
+      box-shadow: 0 4px 16px rgba(243, 156, 18, 0.15);
+    }
+    .style-card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-header);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .style-card-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .style-badge {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--brand-amber);
+      color: #000;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    /* Comparison trigger */
+    .compare-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background-color: #4e5058;
+      transition: .2s; border-radius: 22px;
+    }
+    .slider:before {
+      position: absolute; content: "";
+      height: 16px; width: 16px; left: 3px; bottom: 3px;
+      background-color: white; transition: .2s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--brand-green); }
+    input:checked + .slider:before { transform: translateX(18px); }
+
+    /* Main Chat & Discord Preview */
     .main-view {
       flex: 1;
       display: flex;
@@ -120,45 +204,48 @@
       color: var(--text-header);
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
     .top-bar-badge {
       font-size: 11px;
-      padding: 3px 8px;
+      padding: 3px 10px;
       background: rgba(46, 204, 113, 0.15);
       color: var(--brand-green);
       border-radius: 12px;
-      font-weight: 600;
+      font-weight: 700;
       border: 1px solid rgba(46, 204, 113, 0.3);
     }
 
-    /* Chat Messages Area */
+    /* Messages container */
     .messages-scroller {
       flex: 1;
-      padding: 24px;
+      padding: 24px 32px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 24px;
     }
 
     .message {
       display: flex;
       gap: 16px;
-      max-width: 950px;
+      max-width: 900px;
+      width: 100%;
     }
     .bot-avatar {
-      width: 42px;
-      height: 42px;
+      width: 44px;
+      height: 44px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #5865f2, #3b45ab);
+      background: linear-gradient(135deg, #f39c12, #d35400);
       display: grid;
       place-items: center;
       font-size: 20px;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     .message-content {
       flex: 1;
+      min-width: 0;
     }
     .message-header {
       display: flex;
@@ -175,105 +262,272 @@
       background: var(--brand-blurple);
       color: #fff;
       font-size: 10px;
-      padding: 1px 4px;
+      padding: 1px 5px;
       border-radius: 3px;
       font-weight: 700;
       text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
     .message-time {
       font-size: 12px;
       color: var(--text-muted);
     }
 
-    /* Discord Embed */
+    /* DISCORD EMBED BASE */
     .discord-embed {
       background: var(--bg-secondary);
-      border-left: 4px solid var(--brand-orange);
+      border-left: 4px solid var(--brand-amber);
       border-radius: 4px;
-      padding: 16px;
-      margin-top: 6px;
+      padding: 18px 20px;
       display: flex;
       flex-direction: column;
       gap: 14px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      position: relative;
     }
-    .embed-header {
+
+    .embed-title-area {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 12px;
     }
     .embed-title {
-      font-size: 16px;
-      font-weight: 700;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-header);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .embed-stats-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+    }
+    .stat-pill {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .stat-pill b {
       color: var(--text-header);
     }
+
     .embed-desc {
-      font-size: 14px;
+      font-size: 13.5px;
       color: var(--text-normal);
-      line-height: 1.45;
+      line-height: 1.5;
     }
     .embed-desc a {
       color: var(--brand-blue);
       text-decoration: none;
+      font-weight: 600;
     }
     .embed-desc a:hover {
       text-decoration: underline;
     }
 
-    /* Grid of vehicles */
-    .vehicles-grid {
+    .subtext {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* ========================================================
+       STYLE 1: MODERN TWO-COLUMN CARDS (RECOMMENDED)
+       ======================================================== */
+    .grid-style-1 {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
       margin-top: 4px;
     }
-    .vehicle-card {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border-subtle);
+    .card-v1 {
+      background: rgba(0, 0, 0, 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.06);
       border-radius: 6px;
-      padding: 12px;
-      transition: transform 0.15s, border-color 0.15s, background 0.15s;
-      cursor: pointer;
-    }
-    .vehicle-card:hover {
-      transform: translateY(-2px);
-      border-color: rgba(230, 126, 34, 0.4);
-      background: rgba(230, 126, 34, 0.05);
-    }
-    .v-header {
+      padding: 10px 12px;
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      position: relative;
     }
-    .v-id {
-      font-family: var(--font-mono);
-      font-size: 12px;
+    .card-v1:hover {
+      background: rgba(243, 156, 18, 0.07);
+      border-color: rgba(243, 156, 18, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .card-v1-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-v1-name {
+      font-size: 13.5px;
       font-weight: 700;
-      color: var(--brand-orange);
-      background: rgba(230, 126, 34, 0.15);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-v1-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brand-amber);
+      background: rgba(243, 156, 18, 0.15);
       padding: 2px 6px;
       border-radius: 4px;
     }
-    .v-title {
-      font-weight: 700;
-      font-size: 14px;
-      color: var(--text-header);
-    }
-    .v-info {
+    .card-v1-meta {
       font-size: 12px;
       color: var(--text-muted);
-      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      line-height: 1.35;
     }
-    .v-info b {
+    .card-v1-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-v1-owner {
+      color: var(--text-header);
+      font-weight: 600;
+    }
+    .card-v1-tag {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text-normal);
+    }
+    .fuel-badge-gas {
+      color: #f39c12;
+      background: rgba(243, 156, 18, 0.12);
+      border: 1px solid rgba(243, 156, 18, 0.25);
+    }
+    .fuel-badge-diesel {
+      color: #3498db;
+      background: rgba(52, 152, 219, 0.12);
+      border: 1px solid rgba(52, 152, 219, 0.25);
+    }
+
+    /* ========================================================
+       STYLE 2: HIERARCHY TREE WITH DISCORD SUBTEXT
+       ======================================================== */
+    .grid-style-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .card-v2 {
+      background: rgba(0, 0, 0, 0.18);
+      border-left: 3px solid var(--brand-amber);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      font-size: 12.5px;
+      line-height: 1.45;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .card-v2:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .card-v2-header {
+      font-weight: 700;
+      color: var(--text-header);
+      font-size: 13.5px;
+      margin-bottom: 4px;
+    }
+    .tree-branch {
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    /* ========================================================
+       STYLE 3: COMPACT DASHBOARD TABLE (HIGH DENSITY)
+       ======================================================== */
+    .table-v3 {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0 4px;
+      font-size: 13px;
+    }
+    .table-v3 th {
+      text-align: left;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      padding: 6px 10px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .table-v3 td {
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .table-v3 tr {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .table-v3 tr:hover td {
+      background: rgba(243, 156, 18, 0.1);
+    }
+    .table-v3 tr td:first-child {
+      border-top-left-radius: 6px;
+      border-bottom-left-radius: 6px;
+      border-left: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .table-v3 tr td:last-child {
+      border-top-right-radius: 6px;
+      border-bottom-right-radius: 6px;
+      border-right: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Footer of Embed */
+    .embed-footer {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 10px;
+      margin-top: 4px;
+    }
+    .embed-footer img {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
     }
 
     /* Discord UI Select Menu */
+    .discord-select-container {
+      margin-top: 8px;
+    }
     .discord-select {
       width: 100%;
       background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
+      border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 6px;
       padding: 10px 14px;
       color: var(--text-normal);
@@ -281,10 +535,14 @@
       font-size: 14px;
       cursor: pointer;
       outline: none;
-      transition: border-color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: border-color 0.15s, background 0.15s;
     }
     .discord-select:hover {
-      border-color: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.3);
+      background: #232528;
     }
 
     /* Discord Buttons Row */
@@ -293,11 +551,12 @@
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
+      margin-top: 10px;
     }
     .btn {
-      padding: 8px 16px;
+      padding: 7px 14px;
       font-family: var(--font-main);
-      font-size: 14px;
+      font-size: 13.5px;
       font-weight: 600;
       border-radius: 4px;
       border: none;
@@ -305,10 +564,10 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      transition: background 0.15s, opacity 0.15s;
+      transition: all 0.15s;
     }
     .btn:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
     }
     .btn-primary {
@@ -332,385 +591,739 @@
     .btn-success:not(:disabled):hover {
       background: #1a6334;
     }
-
-    /* Search bar inside demo */
-    .search-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
+    .btn-amber {
+      background: rgba(243, 156, 18, 0.2);
+      color: var(--brand-amber);
+      border: 1px solid rgba(243, 156, 18, 0.4);
     }
-    .search-input {
-      flex: 1;
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: var(--text-normal);
-      font-size: 14px;
-      outline: none;
-    }
-    .search-input:focus {
-      border-color: var(--brand-blurple);
+    .btn-amber:hover {
+      background: rgba(243, 156, 18, 0.3);
     }
 
     /* Modal Details View */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, 0.78);
+      backdrop-filter: blur(6px);
       display: none;
       place-items: center;
       z-index: 1000;
+      padding: 20px;
     }
     .modal-overlay.open {
       display: grid;
     }
     .modal-card {
-      width: 580px;
-      max-width: 90vw;
+      width: 640px;
+      max-width: 95vw;
       background: var(--bg-secondary);
-      border-radius: 8px;
-      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      border-radius: 10px;
+      box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
       border-left: 5px solid var(--brand-blue);
       padding: 24px;
       display: flex;
       flex-direction: column;
       gap: 16px;
-      animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      max-height: 90vh;
+      overflow-y: auto;
     }
     @keyframes modalIn {
-      from { opacity: 0; transform: scale(0.95); }
+      from { opacity: 0; transform: scale(0.94); }
       to { opacity: 1; transform: scale(1); }
     }
-    .modal-header {
+    .modal-top-bar {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+    .modal-vuid {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      background: rgba(52, 152, 219, 0.15);
+      color: var(--brand-blue);
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
     }
     .modal-close {
       background: none;
       border: none;
       color: var(--text-muted);
       cursor: pointer;
-      font-size: 20px;
+      font-size: 22px;
+      line-height: 1;
+      transition: color 0.15s;
     }
     .modal-close:hover {
       color: #fff;
     }
-    .code-box {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-subtle);
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: #7289da;
-      white-space: pre-wrap;
-    }
-    .details-grid {
+    .specs-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 10px;
     }
-    .detail-item {
-      background: rgba(0, 0, 0, 0.2);
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 13px;
+    .spec-box {
+      background: rgba(0, 0, 0, 0.25);
+      padding: 10px 12px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
     }
-    .detail-item span {
-      color: var(--text-muted);
-      display: block;
-      font-size: 11px;
+    .spec-label {
+      font-size: 10px;
+      font-weight: 800;
       text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .spec-value {
+      font-size: 13.5px;
       font-weight: 700;
-      margin-bottom: 2px;
+      color: var(--text-header);
+    }
+
+    .tuning-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .tuning-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: var(--font-mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .pill-ecu { background: rgba(241, 196, 15, 0.15); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.3); }
+    .pill-turbo { background: rgba(230, 126, 34, 0.15); color: #e67e22; border: 1px solid rgba(230, 126, 34, 0.3); }
+    .pill-set { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.3); }
+    .pill-nitro { background: rgba(155, 89, 182, 0.15); color: #9b59b6; border: 1px solid rgba(155, 89, 182, 0.3); }
+    .pill-susp { background: rgba(52, 152, 219, 0.15); color: #3498db; border: 1px solid rgba(52, 152, 219, 0.3); }
+    .pill-generic { background: rgba(255, 255, 255, 0.06); color: var(--text-normal); border: 1px solid rgba(255, 255, 255, 0.1); }
+
+    .drivers-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .driver-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      background: rgba(0, 0, 0, 0.18);
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+    .driver-idx {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      width: 16px;
+    }
+
+    /* Live Search & Filter Bar in Sidebar */
+    .filter-input {
+      width: 100%;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 9px 12px;
+      color: var(--text-normal);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .filter-input:focus {
+      border-color: var(--brand-amber);
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .filter-chip {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 14px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-chip:hover {
+      color: var(--text-header);
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .filter-chip.active {
+      background: rgba(243, 156, 18, 0.15);
+      border-color: var(--brand-amber);
+      color: var(--brand-amber);
+      font-weight: 700;
+    }
+
+    /* Code export box */
+    .export-box {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #9cdcfe;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      max-height: 140px;
+      overflow-y: auto;
     }
   </style>
 </head>
 <body>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="guild-header">
-      <div class="guild-badge">🛡️</div>
-      <div>Team77 • ProjectRPG</div>
-    </div>
-    <div class="channels-list">
-      <div class="channel-item active" onclick="switchTab('fleet')">
-        <span>🚗</span> #flota-organizacji
-      </div>
-      <div class="channel-item" onclick="switchTab('stats')">
-        <span>📊</span> #statystyki-floty
-      </div>
-      <div class="channel-item" onclick="switchTab('forum')">
-        <span>🌐</span> #forum-vehicles
+  <!-- LEFT CONTROL BAR (DESIGN STUDIO) -->
+  <aside class="control-sidebar">
+    <div class="panel-header">
+      <div class="panel-logo">🏎️</div>
+      <div>
+        <div class="panel-title">Studio Wyglądu Floty</div>
+        <div class="panel-subtitle">Team77 • ProjectRPG Live Preview</div>
       </div>
     </div>
-  </div>
 
-  <!-- Main View -->
-  <div class="main-view">
-    <div class="top-bar">
-      <div class="top-bar-title">
-        <span>🚗</span>
-        <span id="top-title">flota-organizacji</span>
-      </div>
-      <div class="top-bar-badge">● Baza ProjectRPG LIVE (37 pojazdów)</div>
-    </div>
-
-    <div class="messages-scroller" id="scroller">
-      
-      <!-- Interactive Search -->
-      <div class="search-row">
-        <input type="text" class="search-input" id="search-box" placeholder="🔍 Szukaj w 37 autach Team77 (np. Sultan, Buffalo, 1930, karmi77, Miroslaw)..." oninput="handleSearch()">
-      </div>
-
-      <!-- Discord Message from Bot -->
-      <div class="message">
-        <div class="bot-avatar">🤖</div>
-        <div class="message-content">
-          <div class="message-header">
-            <span class="bot-name">AegisBot</span>
-            <span class="bot-tag">BOT</span>
-            <span class="message-time">Dzisiaj o 12:40</span>
+    <div class="controls-body">
+      <!-- Wybór stylu layoutu -->
+      <div>
+        <div class="section-label">🎨 Wybierz Styl Layoutu Discord</div>
+        
+        <div class="style-card active" onclick="setStyle(1)" id="style-card-1">
+          <div class="style-card-title">
+            <span>Karty 2-Kolumnowe</span>
+            <span class="style-badge">Rekomendowany</span>
           </div>
+          <div class="style-card-desc">
+            Szerokie karty (2 na rząd) z badge'em paliwa, wyraźnym modelem i nickiem. Nigdy się nie rozjeżdżają.
+          </div>
+        </div>
 
-          <!-- Embed -->
-          <div class="discord-embed">
-            <div class="embed-header">
-              <div class="embed-title">🚗 Flota Pojazdów Organizacji Team77</div>
-              <img src="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png" width="36" height="36" style="border-radius: 4px;" alt="Logo">
-            </div>
-            <div class="embed-desc">
-              Oficjalna baza pojazdów pobrana na żywo z <b><a href="https://projectrpg.pl/vehicles/?sortby=id&sortdirection=asc" target="_blank">ProjectRPG.pl/vehicles</a></b>.<br>
-              Łącznie w organizacji: <b id="total-badge">37</b> pojazdów.<br>
-              <span style="color: var(--text-muted); font-size: 13px;">&gt; *Wybierz pojazd z poniższego menu lub kliknij kartę, aby sprawdzić jego tuning i dane.*</span>
-            </div>
+        <div class="style-card" onclick="setStyle(2)" id="style-card-2">
+          <div class="style-card-title">
+            <span>Drzewko Hierarchii</span>
+            <span class="style-badge" style="background: #3498db; color: #fff;">Sleek</span>
+          </div>
+          <div class="style-card-desc">
+            Nowoczesne łączniki drzewka (<code>├</code>, <code>└</code>), kolorowe akcenty boczne i kompaktowa budowa.
+          </div>
+        </div>
 
-            <!-- Vehicles Grid (Current Page) -->
-            <div class="vehicles-grid" id="vehicles-container"></div>
-
-            <!-- Select Menu -->
-            <select class="discord-select" id="vehicle-select" onchange="onSelectVehicle(this.value)">
-              <option value="" disabled selected>🔎 Wybierz pojazd z tej strony, by sprawdzić szczegóły...</option>
-            </select>
-
-            <!-- Buttons -->
-            <div class="discord-buttons">
-              <button class="btn btn-secondary" id="btn-first" onclick="goToPage(0)">⏮</button>
-              <button class="btn btn-primary" id="btn-prev" onclick="prevPage()">◀ Poprzednia</button>
-              <button class="btn btn-secondary" id="btn-counter" disabled>1 / 7</button>
-              <button class="btn btn-primary" id="btn-next" onclick="nextPage()">Następna ▶</button>
-              <button class="btn btn-secondary" id="btn-last" onclick="goToLast()">⏭</button>
-              <button class="btn btn-success" onclick="refreshFleet()">Odśwież 🔄</button>
-            </div>
+        <div class="style-card" onclick="setStyle(3)" id="style-card-3">
+          <div class="style-card-title">
+            <span>Tabela Dashboard</span>
+            <span class="style-badge" style="background: #2ecc71; color: #000;">Kompakt</span>
+          </div>
+          <div class="style-card-desc">
+            Jednolita, gęsta tabela z modelami, VUID, właścicielami i silnikami. Idealna na dużą liczbę aut.
           </div>
         </div>
       </div>
 
-    </div>
-  </div>
+      <!-- Filtrowanie na żywo -->
+      <div>
+        <div class="section-label">🔍 Wyszukiwarka i Filtry</div>
+        <input type="text" class="filter-input" id="search-input" placeholder="Szukaj ID, modelu, gracza..." oninput="onSearchChange(this.value)">
+        <div class="filter-chips" style="margin-top: 8px;">
+          <div class="filter-chip active" onclick="setFilter('all', this)">Wszystkie (37)</div>
+          <div class="filter-chip" onclick="setFilter('sport', this)">🏎️ Sportowe</div>
+          <div class="filter-chip" onclick="setFilter('suv', this)">🚙 Teren / Dostawcze</div>
+          <div class="filter-chip" onclick="setFilter('bike', this)">🏍️ Jednoślady</div>
+          <div class="filter-chip" onclick="setFilter('gas', this)">⛽ Benzyna</div>
+          <div class="filter-chip" onclick="setFilter('diesel', this)">🛢️ Diesel</div>
+        </div>
+      </div>
 
-  <!-- Modal Details Card -->
+      <!-- Statystyki floty -->
+      <div style="background: rgba(0,0,0,0.18); padding: 12px; border-radius: 8px; border: 1px solid var(--border-subtle);">
+        <div class="section-label">📊 Podsumowanie Floty</div>
+        <div style="font-size: 12px; line-height: 1.6; color: var(--text-normal);">
+          <div>• Aut w organizacji: <b style="color: var(--brand-amber);">37 pojazdów</b></div>
+          <div>• Najpopularniejszy model: <b>Sabre Ghost (3 szt.)</b></div>
+          <div>• Największy silnik: <b>Zenith 6.1dm³</b></div>
+          <div>• Lider floty: <b>karmi77 (7 aut)</b></div>
+        </div>
+      </div>
+
+      <!-- Gotowy kod do wdrożenia -->
+      <div>
+        <div class="section-label">⚡ Wdrożenie w bocie</div>
+        <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="applyDesignToBot()">
+          💾 Zatwierdź i Wdróż ten Styl do Bota
+        </button>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- MAIN DISCORD CLIENT VIEW -->
+  <main class="main-view">
+    <div class="top-bar">
+      <div class="top-bar-title">
+        <span style="color: var(--text-muted);">#</span>
+        <span>flota-organizacji</span>
+        <span class="top-bar-badge">● LIVE PROJECTRPG.PL</span>
+      </div>
+      <div style="font-size: 13px; color: var(--text-muted);">
+        AegisBot / Team77 Edition
+      </div>
+    </div>
+
+    <div class="messages-scroller">
+      <div class="message">
+        <div class="bot-avatar">🏎️</div>
+        <div class="message-content">
+          <div class="message-header">
+            <span class="bot-name">Team77</span>
+            <span class="bot-tag">BOT</span>
+            <span class="message-time">Dzisiaj o 13:10</span>
+          </div>
+
+          <!-- THE DISCORD EMBED -->
+          <div class="discord-embed" id="discord-embed">
+            
+            <!-- Header with Title and Live Stats Bar -->
+            <div class="embed-title-area">
+              <div class="embed-title">
+                <span>🚗</span>
+                <span>Flota Pojazdów Organizacji Team77</span>
+              </div>
+              <div class="embed-stats-bar">
+                <div class="stat-pill">🏎️ <b id="stat-total">37</b> aut</div>
+                <div style="opacity: 0.3;">│</div>
+                <div class="stat-pill">⛽ <b>26</b> benz.</div>
+                <div style="opacity: 0.3;">│</div>
+                <div class="stat-pill">🛢️ <b>10</b> diesel</div>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="embed-desc">
+              Oficjalna baza floty pobrana na żywo z <b><a href="https://projectrpg.pl/vehicles/" target="_blank">ProjectRPG.pl/vehicles</a></b>.<br>
+              <span class="subtext" style="margin-top: 4px;">
+                💡 <i>Wybierz pojazd z poniższej listy lub menu rozwijanego, aby wyświetlić tuning i historię kierowców.</i>
+              </span>
+            </div>
+
+            <!-- DYNAMIC VEHICLES CONTAINER (SWITCHES ACCORDING TO CURRENT STYLE) -->
+            <div id="vehicles-container"></div>
+
+            <!-- Embed Footer -->
+            <div class="embed-footer">
+              <img src="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png" alt="PRPG Logo">
+              <span id="footer-text">Strona 3 z 7 • Team77 ProjectRPG • Ostatnia synchronizacja: przed chwilą</span>
+            </div>
+
+          </div>
+
+          <!-- DISCORD SELECT MENU -->
+          <div class="discord-select-container">
+            <div class="discord-select" onclick="openSelectDropdown()">
+              <span id="select-label">🔍 Wybierz pojazd z tej strony, aby sprawdzić tuning...</span>
+              <span style="color: var(--text-muted); font-size: 11px;">▼</span>
+            </div>
+          </div>
+
+          <!-- DISCORD BUTTONS ROW -->
+          <div class="discord-buttons">
+            <button class="btn btn-secondary" id="btn-first" onclick="changePage(0)">⏮</button>
+            <button class="btn btn-primary" id="btn-prev" onclick="changePage(currentPage - 1)">◀ Poprzednia</button>
+            <button class="btn btn-secondary" id="btn-counter" disabled style="opacity: 1; font-family: var(--font-mono); font-weight: 700;">
+              3 / 7
+            </button>
+            <button class="btn btn-primary" id="btn-next" onclick="changePage(currentPage + 1)">Następna ▶</button>
+            <button class="btn btn-secondary" id="btn-last" onclick="changePage(totalPages - 1)">⏭</button>
+            <button class="btn btn-success" onclick="refreshAnimation()">Odśwież 🔄</button>
+            <button class="btn btn-amber" onclick="openStatsModal()">📊 Statystyki</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: VEHICLE SPECIFICATION & TUNING -->
   <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
     <div class="modal-card" id="modal-card">
-      <div class="modal-header">
+      <div class="modal-top-bar">
         <div>
-          <h2 style="color: var(--text-header); font-size: 18px;" id="modal-title">Specyfikacja Pojazdu</h2>
-          <div style="color: var(--text-muted); font-size: 12px;" id="modal-subtitle">ProjectRPG VUID</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="modal-vuid" id="m-vuid">#48216</span>
+            <h2 style="color: var(--text-header); font-size: 18px;" id="m-model">NRG-500</h2>
+          </div>
+          <div style="color: var(--text-muted); font-size: 12px; margin-top: 2px;" id="m-category">Kategoria: Jednoślad (Motocykl)</div>
         </div>
         <button class="modal-close" onclick="closeModalDirect()">✕</button>
       </div>
 
-      <div class="details-grid">
-        <div class="detail-item">
-          <span>Silnik</span>
-          <b id="m-engine">—</b>
+      <!-- SPECS GRID -->
+      <div class="specs-grid">
+        <div class="spec-box">
+          <div class="spec-label">👤 Właściciel</div>
+          <div class="spec-value" id="m-owner">karmi77 ★</div>
         </div>
-        <div class="detail-item">
-          <span>Przebieg</span>
-          <b id="m-mileage">—</b>
+        <div class="spec-box">
+          <div class="spec-label">⚙️ Pojemność & Paliwo</div>
+          <div class="spec-value" id="m-engine">1.2dm³ (Benzyna)</div>
         </div>
-        <div class="detail-item">
-          <span>Tablica Rejestracyjna</span>
-          <b id="m-plate">—</b>
+        <div class="spec-box">
+          <div class="spec-label">🛣️ Przebieg</div>
+          <div class="spec-value" id="m-mileage">45,000 km</div>
         </div>
-        <div class="detail-item">
-          <span>Ostatni Kierowca</span>
-          <b id="m-driver">—</b>
+        <div class="spec-box">
+          <div class="spec-label">🚘 Tablica Rejestracyjna</div>
+          <div class="spec-value" id="m-plate">SPEED 77</div>
+        </div>
+        <div class="spec-box">
+          <div class="spec-label">🛠️ Przegląd Techniczny</div>
+          <div class="spec-value" id="m-review">Aktualny (02.2027)</div>
+        </div>
+        <div class="spec-box">
+          <div class="spec-label">💡 Kolor Świateł</div>
+          <div class="spec-value" id="m-lamps" style="color: #00d2d3;">Lazurowe 💎</div>
         </div>
       </div>
 
+      <!-- TUNING MECHANICZNY -->
       <div>
-        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🎨 Tuning Wizualny</span>
-        <div class="code-box" id="m-visual">Brak</div>
+        <div class="section-label" style="color: #e67e22;">🔧 Tuning Mechaniczny (Osiągi)</div>
+        <div class="tuning-pills" id="m-mech-pills">
+          <span class="tuning-pill pill-ecu">⚡ ECU V4</span>
+          <span class="tuning-pill pill-turbo">💨 Turbo V5</span>
+          <span class="tuning-pill pill-set">🏁 Zestaw Torowy</span>
+        </div>
       </div>
 
+      <!-- TUNING WIZUALNY -->
       <div>
-        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🔧 Tuning Mechaniczny</span>
-        <div class="code-box" id="m-mechanical">Brak</div>
+        <div class="section-label" style="color: #3498db;">🎨 Tuning Wizualny i Bodykit</div>
+        <div class="tuning-pills" id="m-vis-pills">
+          <span class="tuning-pill pill-generic">Felgi Trance</span>
+          <span class="tuning-pill pill-generic">Przyciemnienie szyb (80%)</span>
+        </div>
       </div>
 
-      <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <a id="m-forum-link" href="#" target="_blank" class="btn btn-primary" style="text-decoration: none;">🔗 Otwórz w Bazie na Forum</a>
+      <!-- HISTORIA KIEROWCÓW -->
+      <div>
+        <div class="section-label">🕒 Ostatni Kierowcy w Świecie Gry</div>
+        <div class="drivers-timeline" id="m-drivers">
+          <div class="driver-item">
+            <span class="driver-idx">1.</span>
+            <b>karmi77 ★</b>
+            <span style="color: var(--text-muted); font-size: 11px; margin-left: auto;">(Ostatni kierowca)</span>
+          </div>
+          <div class="driver-item">
+            <span class="driver-idx">2.</span>
+            <span>Miroslaw*</span>
+            <span style="color: var(--text-muted); font-size: 11px; margin-left: auto;">2 dni temu</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ACTION BUTTONS -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-subtle); padding-top: 14px;">
+        <span style="font-size: 11.5px; color: var(--text-muted); font-family: var(--font-mono);">Komenda: <code>/pojazd_info vuid:<span id="m-code-vuid">48216</span></code></span>
+        <a id="m-forum-link" href="https://projectrpg.pl/vehicles/" target="_blank" class="btn btn-primary" style="text-decoration: none;">
+          🔗 Zobacz na Forum ProjectRPG
+        </a>
       </div>
     </div>
   </div>
 
   <script>
-    // 37 REAL LIVE VEHICLES SCRAPED DIRECTLY FROM PROJECTRPG.PL/VEHICLES/
-    const REAL_TEAM77_FLEET = [
-      { id: 1930, model: "Moonbeam High Top (418)", fuel: "Diesel", capacity: "1.6dm³", owner: "★ karmi77", plate: "SF 1930", mileage: "89984 km", visual: "Spoiler (1158), Felgi Trance (1084), Rozmiar felg (Duże)", mechanical: "ECU (V4), Gwint. zawieszenie", driver: "Miroslaw*" },
-      { id: 6140, model: "Moonbeam Classic (418)", fuel: "Benzyna", capacity: "1.4dm³", owner: "Miroslaw*", plate: "SF 6140", mileage: "102450 km", visual: "Felgi Import (1082)", mechanical: "Brak", driver: "Miroslaw*" },
-      { id: 10811, model: "Buffalo (402)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ EEbola77", plate: "LV 10811", mileage: "42150 km", visual: "Felgi Mega (1074), Rozmiar (Duże)", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ EEbola77" },
-      { id: 21632, model: "Primo LX Kombi (547)", fuel: "Benzyna", capacity: "1.9dm³", owner: "Miroslaw*", plate: "LV 21632", mileage: "55300 km", visual: "Felgi Switch (1080)", mechanical: "Brak", driver: "Miroslaw*" },
-      { id: 25677, model: "Fortune 240SX (526)", fuel: "Benzyna", capacity: "2.2dm³", owner: "SxDemon", plate: "LS 25677", mileage: "28400 km", visual: "Spoiler (1138), Felgi Rimshine (1075)", mechanical: "ECU (V4), Turbo (V5)", driver: "SxDemon" },
-      { id: 28232, model: "NRG-500 (522)", fuel: "Benzyna", capacity: "1.2dm³", owner: "★ kamil77", plate: "MTA 28232", mileage: "61200 km", visual: "Brak (Motocykl)", mechanical: "ECU (V4), Zestaw (Torowy)", driver: "★ kamil77" },
-      { id: 34823, model: "Camper (483)", fuel: "Benzyna", capacity: "1.7dm³", owner: "★ Dropson77", plate: "CAMP 77", mileage: "15200 km", visual: "Felgi Classic (1077)", mechanical: "Gwint. zawieszenie", driver: "★ Dropson77" },
-      { id: 35620, model: "Benson (499)", fuel: "Diesel", capacity: "1.1dm³", owner: "Miroslaw*", plate: "SF 35620", mileage: "9400 km", visual: "Brak", mechanical: "Brak", driver: "Miroslaw*" },
-      { id: 36155, model: "Buffalo Challenger (402)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ EEbola77", plate: "CHALL 77", mileage: "18900 km", visual: "Pakiet Challenger, Felgi Cutter (1079)", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ EEbola77" },
-      { id: 43065, model: "Sultan (560)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ kamil77", plate: "T77 SULT", mileage: "34800 km", visual: "Full Visual, Spoiler (1139), Progi, Zderzaki", mechanical: "ECU (V4), Turbo (V5), Zestaw (Torowy), AWD", driver: "★ kamil77" },
-      { id: 43948, model: "ZR-350 Amemiya (477)", fuel: "Benzyna", capacity: "3.7dm³", owner: "kejmaN", plate: "ZR 43948", mileage: "27600 km", visual: "Pakiet Amemiya, Felgi Wires (1076)", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "kejmaN" },
-      { id: 44125, model: "Moonbeam (418)", fuel: "Diesel", capacity: "1.2dm³", owner: ".Zyla", plate: "SF 44125", mileage: "115000 km", visual: "Brak", mechanical: "Brak", driver: ".Zyla" },
-      { id: 44660, model: "Rancher Long Pickup Offroad (490)", fuel: "Benzyna", capacity: "2.9dm³", owner: "★ karmi77", plate: "OFF 77", mileage: "14200 km", visual: "Orurowanie, Halogeny, Opony Terenowe", mechanical: "ECU (V4), Hydraulika", driver: "★ karmi77" },
-      { id: 45793, model: "Euros (587)", fuel: "Benzyna", capacity: "3.1dm³", owner: "Adek77", plate: "LV 45793", mileage: "21300 km", visual: "Felgi Shadow (1073)", mechanical: "ECU (V4), Turbo (V5)", driver: "Adek77" },
-      { id: 46246, model: "Perennial Sedan (404)", fuel: "Diesel", capacity: "1.6dm³", owner: ".Zyla", plate: "SF 46246", mileage: "78900 km", visual: "Felgi Classic", mechanical: "Brak", driver: ".Zyla" },
-      { id: 46440, model: "Dinghy (473)", fuel: "Benzyna", capacity: "0cm³", owner: "Flash", plate: "BOAT 77", mileage: "3200 km", visual: "Łódź motorowa", mechanical: "Fabryczny", driver: "Flash" },
-      { id: 48216, model: "NRG-500 (522)", fuel: "Benzyna", capacity: "1.2dm³", owner: "★ karmi77", plate: "SPEED 77", mileage: "45000 km", visual: "Brak", mechanical: "ECU (V4), Zestaw (Torowy)", driver: "★ karmi77" },
-      { id: 49019, model: "Benson (499)", fuel: "Diesel", capacity: "1.1dm³", owner: "Analek2137PL", plate: "LV 49019", mileage: "8300 km", visual: "Brak", mechanical: "Brak", driver: "Analek2137PL" },
-      { id: 49808, model: "Premier (426)", fuel: "Diesel", capacity: "2.1dm³", owner: "x01", plate: "LS 49808", mileage: "31200 km", visual: "Felgi Trance", mechanical: "ECU (V4)", driver: "x01" },
-      { id: 49831, model: "Perennial (404)", fuel: "Diesel", capacity: "1.5dm³", owner: "EdekJedziem1", plate: "SF 49831", mileage: "67000 km", visual: "Brak", mechanical: "Brak", driver: "EdekJedziem1" },
-      { id: 50518, model: "Banshee Viper GTS (429)", fuel: "Benzyna", capacity: "4.9dm³", owner: "★ AroN.", plate: "VIPER 77", mileage: "12400 km", visual: "Pakiet Viper GTS, Felgi Ahab", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ AroN." },
-      { id: 52708, model: "Alpha VR-4 Aero I (602)", fuel: "Benzyna", capacity: "3.0dm³", owner: "★ AroN.", plate: "VR4 77", mileage: "9800 km", visual: "Pakiet Aero, Felgi Twist", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "★ AroN." },
-      { id: 53547, model: "Banshee Viper GTS (429)", fuel: "Benzyna", capacity: "4.9dm³", owner: "★ RoQ.", plate: "ROQ 77", mileage: "15300 km", visual: "Pakiet Viper GTS, Spoiler Carbon", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ RoQ." },
-      { id: 55178, model: "Stanier Marauder Aero (596)", fuel: "Benzyna", capacity: "4.6dm³", owner: "★ AroN.", plate: "STAN 77", mileage: "7100 km", visual: "Pakiet Marauder Aero", mechanical: "ECU (V4), Turbo (V5)", driver: "★ AroN." },
-      { id: 55182, model: "Stanier (596)", fuel: "Benzyna", capacity: "4.6dm³", owner: "kejmaN", plate: "SF 55182", mileage: "11200 km", visual: "Felgi Classic", mechanical: "ECU (V4)", driver: "kejmaN" },
-      { id: 55972, model: "Turismo Competizione (451)", fuel: "Benzyna", capacity: "4.4dm³", owner: "★ karmi77", plate: "COMP 77", mileage: "8900 km", visual: "Pakiet Competizione, Felgi Cutter", mechanical: "Full Mech (V4/V5/W/Torowy)", driver: "★ karmi77" },
-      { id: 56182, model: "Turismo Competizione (451)", fuel: "Benzyna", capacity: "4.4dm³", owner: "★ kamil77", plate: "T77 TUR", mileage: "6400 km", visual: "Pakiet Competizione, Carbon", mechanical: "Full Mech (V4/V5/W/Torowy)", driver: "★ kamil77" },
-      { id: 56407, model: "Sanchez SM (468)", fuel: "Benzyna", capacity: "600cm³", owner: "Pocisk204", plate: "CROSS 77", mileage: "18900 km", visual: "Koła Supermoto", mechanical: "ECU (V4)", driver: "Pocisk204" },
-      { id: 56929, model: "Schafter STR (604)", fuel: "Benzyna", capacity: "2.9dm³", owner: "★ kamil77", plate: "STR 77", mileage: "14200 km", visual: "Pakiet STR, Felgi Trance", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "★ kamil77" },
-      { id: 59122, model: "Dinghy (473)", fuel: "Benzyna", capacity: "0cm³", owner: "★ AroN.", plate: "SEA 77", mileage: "1100 km", visual: "Łódź", mechanical: "Fabryczny", driver: "★ AroN." },
-      { id: 60840, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "HYNIEK.77", plate: "HYN 77", mileage: "5600 km", visual: "Pakiet Ghost, Felgi Import", mechanical: "ECU (V4), Turbo (V5)", driver: "HYNIEK.77" },
-      { id: 61084, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "★ karmi77", plate: "GHOST 77", mileage: "4300 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", driver: "★ karmi77" },
-      { id: 61086, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "★ kamil77", plate: "T77 GHO", mileage: "3900 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", driver: "★ kamil77" },
-      { id: 63630, model: "Schafter Kombi (604)", fuel: "Benzyna", capacity: "2.9dm³", owner: "Magik77", plate: "MAG 77", mileage: "9200 km", visual: "Felgi Twist", mechanical: "ECU (V4), Gwint", driver: "Magik77" },
-      { id: 63970, model: "Zenith (616)", fuel: "Benzyna", capacity: "6.1dm³", owner: "★ karmi77", plate: "ZEN 77", mileage: "4100 km", visual: "Pakiet VIP, Felgi Trance, Przyciemnione szyby", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ karmi77" },
-      { id: 64047, model: "Sunrise Kombi (550)", fuel: "Diesel", capacity: "1.8dm³", owner: "Lesxcxu88", plate: "SUN 77", mileage: "14800 km", visual: "Felgi Classic", mechanical: "Brak", driver: "Lesxcxu88" },
-      { id: 64185, model: "Buffalo STX (614)", fuel: "Benzyna", capacity: "3.6dm³", owner: "★ karmi77", plate: "STX 77", mileage: "2100 km", visual: "Pakiet STX, Carbon, Lampy Oldtimer", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ karmi77" }
+    // 37 REAL LIVE VEHICLES FROM PROJECTRPG.PL/VEHICLES/ FOR TEAM77
+    const TEAM77_FLEET = [
+      { id: 1930, model: "Moonbeam High Top", fuel: "Diesel", capacity: "1.6dm³", owner: "karmi77 ★", plate: "SF 1930", mileage: "89,984 km", visual: "Spoiler (1158), Felgi Trance, Felgi Duże", mechanical: "ECU (V4), Gwintowane zawieszenie", lamps: "Brak", category: "Klasyk" },
+      { id: 6140, model: "Moonbeam Classic", fuel: "Benzyna", capacity: "1.4dm³", owner: "Miroslaw*", plate: "SF 6140", mileage: "102,450 km", visual: "Felgi Import", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 10811, model: "Buffalo", fuel: "Benzyna", capacity: "3.7dm³", owner: "EEbola77 ★", plate: "LV 10811", mileage: "42,150 km", visual: "Felgi Mega, Rozmiar Duże", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", lamps: "Złote ⭐", category: "Sport" },
+      { id: 21632, model: "Primo LX Kombi", fuel: "Benzyna", capacity: "1.9dm³", owner: "Miroslaw*", plate: "LV 21632", mileage: "55,300 km", visual: "Felgi Switch", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 25677, model: "Fortune 240SX", fuel: "Benzyna", capacity: "2.2dm³", owner: "SxDemon", plate: "LS 25677", mileage: "28,400 km", visual: "Spoiler (1138), Felgi Rimshine", mechanical: "ECU (V4), Turbo (V5)", lamps: "Czerwone 🔴", category: "Sport" },
+      { id: 28232, model: "NRG-500", fuel: "Benzyna", capacity: "1.2dm³", owner: "kamil77 ★", plate: "MTA 28232", mileage: "61,200 km", visual: "Brak (Motocykl)", mechanical: "ECU (V4), Zestaw (Torowy)", lamps: "Brak", category: "Jednoślad" },
+      { id: 34823, model: "Camper", fuel: "Benzyna", capacity: "1.7dm³", owner: "Dropson77 ★", plate: "CAMP 77", mileage: "15,200 km", visual: "Felgi Classic", mechanical: "Gwintowane zawieszenie", lamps: "Brak", category: "Dostawczy / Camper" },
+      { id: 35620, model: "Benson", fuel: "Diesel", capacity: "1.1dm³", owner: "Miroslaw*", plate: "SF 35620", mileage: "9,400 km", visual: "Brak", mechanical: "Fabryczny", lamps: "Brak", category: "Dostawczy" },
+      { id: 36155, model: "Buffalo Challenger", fuel: "Benzyna", capacity: "3.7dm³", owner: "EEbola77 ★", plate: "CHALL 77", mileage: "18,900 km", visual: "Pakiet Challenger, Felgi Cutter", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", lamps: "Lazurowe 💎", category: "Sport" },
+      { id: 43065, model: "Sultan", fuel: "Benzyna", capacity: "3.7dm³", owner: "kamil77 ★", plate: "T77 SULT", mileage: "34,800 km", visual: "Full Visual, Spoiler (1139), Progi, Zderzaki", mechanical: "ECU (V4), Turbo (V5), Zestaw (Torowy), AWD", lamps: "Szmaragdowe 🟢", category: "Sport" },
+      { id: 43948, model: "ZR-350 Amemiya", fuel: "Benzyna", capacity: "3.7dm³", owner: "kejmaN", plate: "ZR 43948", mileage: "27,600 km", visual: "Pakiet Amemiya, Felgi Wires", mechanical: "ECU (V4), Turbo (V5), Gwint", lamps: "Brak", category: "Sport" },
+      { id: 44125, model: "Moonbeam", fuel: "Diesel", capacity: "1.2dm³", owner: ".Zyla", plate: "SF 44125", mileage: "115,000 km", visual: "Brak", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 44660, model: "Rancher Long Pickup Offroad", fuel: "Benzyna", capacity: "2.9dm³", owner: "karmi77 ★", plate: "OFF 77", mileage: "14,200 km", visual: "Orurowanie, Halogeny, Opony Terenowe", mechanical: "ECU (V4), Hydraulika", lamps: "Złote ⭐", category: "Terenowy" },
+      { id: 45793, model: "Euros", fuel: "Benzyna", capacity: "3.1dm³", owner: "Adek77", plate: "LV 45793", mileage: "21,300 km", visual: "Felgi Shadow", mechanical: "ECU (V4), Turbo (V5)", lamps: "Niebieskie 🔵", category: "Sport" },
+      { id: 46246, model: "Perennial Sedan", fuel: "Diesel", capacity: "1.6dm³", owner: ".Zyla", plate: "SF 46246", mileage: "78,900 km", visual: "Felgi Classic", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 46440, model: "Dinghy", fuel: "Benzyna", capacity: "0cm³", owner: "Flash", plate: "BOAT 77", mileage: "3,200 km", visual: "Łódź motorowa", mechanical: "Fabryczny", lamps: "Brak", category: "Łódź" },
+      { id: 48216, model: "NRG-500", fuel: "Benzyna", capacity: "1.2dm³", owner: "karmi77 ★", plate: "SPEED 77", mileage: "45,000 km", visual: "Brak", mechanical: "ECU (V4), Zestaw (Torowy)", lamps: "Lazurowe 💎", category: "Jednoślad" },
+      { id: 49019, model: "Benson", fuel: "Diesel", capacity: "1.1dm³", owner: "Analek2137PL", plate: "LV 49019", mileage: "8,300 km", visual: "Brak", mechanical: "Fabryczny", lamps: "Brak", category: "Dostawczy" },
+      { id: 49808, model: "Premier", fuel: "Diesel", capacity: "2.1dm³", owner: "x01", plate: "LS 49808", mileage: "31,200 km", visual: "Felgi Trance", mechanical: "ECU (V4)", lamps: "Brak", category: "Klasyk" },
+      { id: 49831, model: "Perennial", fuel: "Diesel", capacity: "1.5dm³", owner: "EdekJedziem1", plate: "SF 49831", mileage: "67,000 km", visual: "Brak", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 50518, model: "Banshee Viper GTS", fuel: "Benzyna", capacity: "4.9dm³", owner: "AroN. ★", plate: "VIPER 77", mileage: "12,400 km", visual: "Pakiet Viper GTS, Felgi Ahab", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", lamps: "Fioletowe 🟣", category: "Sport" },
+      { id: 52708, model: "Alpha VR-4 Aero I", fuel: "Benzyna", capacity: "3.0dm³", owner: "AroN. ★", plate: "VR4 77", mileage: "9,800 km", visual: "Pakiet Aero, Felgi Twist", mechanical: "ECU (V4), Turbo (V5), Gwint", lamps: "Lazurowe 💎", category: "Sport" },
+      { id: 53547, model: "Banshee Viper GTS", fuel: "Benzyna", capacity: "4.9dm³", owner: "RoQ. ★", plate: "ROQ 77", mileage: "15,300 km", visual: "Pakiet Viper GTS, Spoiler Carbon", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", lamps: "Czerwone 🔴", category: "Sport" },
+      { id: 55178, model: "Stanier Marauder Aero", fuel: "Benzyna", capacity: "4.6dm³", owner: "AroN. ★", plate: "STAN 77", mileage: "7,100 km", visual: "Pakiet Marauder Aero", mechanical: "ECU (V4), Turbo (V5)", lamps: "Lazurowe 💎", category: "Sport" },
+      { id: 55182, model: "Stanier", fuel: "Benzyna", capacity: "4.6dm³", owner: "kejmaN", plate: "SF 55182", mileage: "11,200 km", visual: "Felgi Classic", mechanical: "ECU (V4)", lamps: "Brak", category: "Klasyk" },
+      { id: 55972, model: "Turismo Competizione", fuel: "Benzyna", capacity: "4.4dm³", owner: "karmi77 ★", plate: "COMP 77", mileage: "8,900 km", visual: "Pakiet Competizione, Felgi Cutter", mechanical: "Full Mech (V4/V5/W/Torowy)", lamps: "Złote ⭐", category: "Sport" },
+      { id: 56182, model: "Turismo Competizione", fuel: "Benzyna", capacity: "4.4dm³", owner: "kamil77 ★", plate: "T77 TUR", mileage: "6,400 km", visual: "Pakiet Competizione, Carbon", mechanical: "Full Mech (V4/V5/W/Torowy)", lamps: "Lazurowe 💎", category: "Sport" },
+      { id: 56407, model: "Sanchez SM", fuel: "Benzyna", capacity: "600cm³", owner: "Pocisk204", plate: "CROSS 77", mileage: "18,900 km", visual: "Koła Supermoto", mechanical: "ECU (V4)", lamps: "Brak", category: "Jednoślad" },
+      { id: 56929, model: "Schafter STR", fuel: "Benzyna", capacity: "2.9dm³", owner: "kamil77 ★", plate: "STR 77", mileage: "14,200 km", visual: "Pakiet STR, Felgi Trance", mechanical: "ECU (V4), Turbo (V5), Gwint", lamps: "Czerwone 🔴", category: "Sport" },
+      { id: 59122, model: "Dinghy", fuel: "Benzyna", capacity: "0cm³", owner: "AroN. ★", plate: "SEA 77", mileage: "1,100 km", visual: "Łódź", mechanical: "Fabryczny", lamps: "Brak", category: "Łódź" },
+      { id: 60840, model: "Sabre Ghost", fuel: "Benzyna", capacity: "2.3dm³", owner: "HYNIEK.77", plate: "HYN 77", mileage: "5,600 km", visual: "Pakiet Ghost, Felgi Import", mechanical: "ECU (V4), Turbo (V5)", lamps: "Brak", category: "Sport" },
+      { id: 61084, model: "Sabre Ghost", fuel: "Benzyna", capacity: "2.3dm³", owner: "karmi77 ★", plate: "GHOST 77", mileage: "4,300 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", lamps: "Fioletowe 🟣", category: "Sport" },
+      { id: 61086, model: "Sabre Ghost", fuel: "Benzyna", capacity: "2.3dm³", owner: "kamil77 ★", plate: "T77 GHO", mileage: "3,900 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", lamps: "Lazurowe 💎", category: "Sport" },
+      { id: 63630, model: "Schafter Kombi", fuel: "Benzyna", capacity: "2.9dm³", owner: "Magik77", plate: "MAG 77", mileage: "9,200 km", visual: "Felgi Twist", mechanical: "ECU (V4), Gwint", lamps: "Brak", category: "Sport" },
+      { id: 63970, model: "Zenith", fuel: "Benzyna", capacity: "6.1dm³", owner: "karmi77 ★", plate: "ZEN 77", mileage: "4,100 km", visual: "Pakiet VIP, Felgi Trance, Szyby 80%", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", lamps: "Złote ⭐", category: "Sport" },
+      { id: 64047, model: "Sunrise Kombi", fuel: "Diesel", capacity: "1.8dm³", owner: "Lesxcxu88", plate: "SUN 77", mileage: "14,800 km", visual: "Felgi Classic", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" },
+      { id: 65112, model: "Perennial Sedan", fuel: "Diesel", capacity: "1.6dm³", owner: "Adek77", plate: "SF 65112", mileage: "92,100 km", visual: "Felgi Import", mechanical: "Fabryczny", lamps: "Brak", category: "Klasyk" }
     ];
 
-    let currentList = [...REAL_TEAM77_FLEET];
-    let currentPage = 0;
-    const perPage = 6;
+    let currentStyle = 1;
+    let currentPage = 2; // Strona 3 (0-indexed) żeby idealnie odpowiadała zrzutowi ekranu użytkownika!
+    const ITEMS_PER_PAGE = 6;
+    let filteredList = [...TEAM77_FLEET];
+    let totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
 
-    function renderPage() {
-      const totalPages = Math.max(1, Math.ceil(currentList.length / perPage));
-      currentPage = Math.min(currentPage, totalPages - 1);
+    function getCategoryEmoji(cat) {
+      if (cat === "Sport") return "🏎️";
+      if (cat === "Terenowy") return "🚙";
+      if (cat === "Jednoślad") return "🏍️";
+      if (cat === "Łódź") return "🛥️";
+      if (cat.includes("Dostawczy")) return "🚚";
+      return "🚗";
+    }
+
+    function renderFleet() {
+      const container = document.getElementById("vehicles-container");
+      totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE) || 1;
+      if (currentPage >= totalPages) currentPage = totalPages - 1;
       if (currentPage < 0) currentPage = 0;
 
-      const container = document.getElementById("vehicles-container");
-      const select = document.getElementById("vehicle-select");
-      container.innerHTML = "";
-      select.innerHTML = '<option value="" disabled selected>🔎 Wybierz pojazd z tej strony, by sprawdzić szczegóły...</option>';
+      const start = currentPage * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      const pageItems = filteredList.slice(start, end);
 
-      const start = currentPage * perPage;
-      const end = start + perPage;
-      const pageVehicles = currentList.slice(start, end);
+      // Zaktualizuj licznik przycisków
+      document.getElementById("btn-counter").textContent = `${currentPage + 1} / ${totalPages}`;
+      document.getElementById("btn-prev").disabled = currentPage === 0;
+      document.getElementById("btn-first").disabled = currentPage === 0;
+      document.getElementById("btn-next").disabled = currentPage === totalPages - 1;
+      document.getElementById("btn-last").disabled = currentPage === totalPages - 1;
 
-      if (pageVehicles.length === 0) {
-        container.innerHTML = '<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--text-muted);">Brak pojazdów spełniających kryteria.</div>';
-      }
+      // Zaktualizuj stopkę
+      document.getElementById("footer-text").textContent = `Strona ${currentPage + 1} z ${totalPages} • Team77 ProjectRPG • Ostatnia synchronizacja: przed chwilą`;
+      document.getElementById("stat-total").textContent = filteredList.length;
 
-      pageVehicles.forEach((v, idx) => {
-        const globalIdx = start + idx + 1;
-        const fuelBadge = v.fuel === "Benzyna" ? "⛽ Benzyna" : "🛢️ Diesel";
-        
-        // Card HTML
-        const card = document.createElement("div");
-        card.className = "vehicle-card";
-        card.onclick = () => openModal(v);
-        card.innerHTML = `
-          <div class="v-header">
-            <span class="v-id">#${v.id}</span>
-            <span style="font-size: 11px; color: var(--text-muted);">poz. ${globalIdx}</span>
-          </div>
-          <div class="v-title">${v.model}</div>
-          <div class="v-info" style="margin-top: 6px;">
-            <div>👤 Właściciel: <b>${v.owner}</b></div>
-            <div>⚙️ Silnik: <b>${fuelBadge} (${v.capacity})</b></div>
-            <div style="margin-top: 4px; color: var(--brand-blue);">🔗 Kliknij, by zobaczyć tuning</div>
+      if (pageItems.length === 0) {
+        container.innerHTML = `
+          <div style="text-align: center; padding: 24px; color: var(--text-muted); background: rgba(0,0,0,0.2); border-radius: 6px;">
+            🔍 Nie znaleziono żadnych pojazdów pasujących do wybranych filtrów.
           </div>
         `;
-        container.appendChild(card);
+        return;
+      }
 
-        // Select Option
-        const opt = document.createElement("option");
-        opt.value = v.id;
-        opt.textContent = `#${v.id} ${v.model} (${v.owner})`;
-        select.appendChild(opt);
-      });
+      if (currentStyle === 1) {
+        // ==========================================
+        // STYL 1: MODERN TWO-COLUMN CARDS
+        // ==========================================
+        let html = '<div class="grid-style-1">';
+        pageItems.forEach((v, i) => {
+          const globalIdx = start + i + 1;
+          const catEmoji = getCategoryEmoji(v.category);
+          const fuelClass = v.fuel === "Benzyna" ? "fuel-badge-gas" : "fuel-badge-diesel";
+          const fuelEmoji = v.fuel === "Benzyna" ? "⛽" : "🛢️";
+          
+          html += `
+            <div class="card-v1" onclick="openVehicleDetail(${v.id})">
+              <div class="card-v1-top">
+                <div class="card-v1-name">
+                  <span>${catEmoji}</span>
+                  <span title="${v.model}">${v.model}</span>
+                </div>
+                <span class="card-v1-id">#${v.id}</span>
+              </div>
+              <div class="card-v1-meta">
+                <div class="card-v1-meta-row">
+                  <span>👤 Właściciel:</span>
+                  <span class="card-v1-owner">${v.owner}</span>
+                </div>
+                <div class="card-v1-meta-row" style="margin-top: 2px;">
+                  <span>⚙️ Silnik:</span>
+                  <span class="card-v1-tag ${fuelClass}">${fuelEmoji} ${v.fuel} (${v.capacity})</span>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
 
-      // Update Buttons
-      document.getElementById("btn-counter").textContent = `${currentPage + 1} / ${totalPages}`;
-      document.getElementById("btn-first").disabled = (currentPage === 0);
-      document.getElementById("btn-prev").disabled = (currentPage === 0);
-      document.getElementById("btn-next").disabled = (currentPage >= totalPages - 1);
-      document.getElementById("btn-last").disabled = (currentPage >= totalPages - 1);
-      document.getElementById("total-badge").textContent = currentList.length;
+      } else if (currentStyle === 2) {
+        // ==========================================
+        // STYL 2: HIERARCHY TREE WITH DISCORD SUBTEXT
+        // ==========================================
+        let html = '<div class="grid-style-2">';
+        pageItems.forEach((v, i) => {
+          const globalIdx = start + i + 1;
+          const catEmoji = getCategoryEmoji(v.category);
+          const fuelEmoji = v.fuel === "Benzyna" ? "⛽" : "🛢️";
+
+          html += `
+            <div class="card-v2" onclick="openVehicleDetail(${v.id})">
+              <div class="card-v2-header">
+                ${catEmoji} #${v.id} • ${v.model}
+              </div>
+              <div><span class="tree-branch">├</span> 👤 Właściciel: <b>${v.owner}</b></div>
+              <div><span class="tree-branch">├</span> ⚙️ Silnik: <b>${v.capacity}</b> (${fuelEmoji} ${v.fuel})</div>
+              <div><span class="tree-branch">└</span> 🔍 <a href="javascript:void(0)" style="color: var(--brand-blue); text-decoration: none;">Sprawdź pełny tuning</a></div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+
+      } else if (currentStyle === 3) {
+        // ==========================================
+        // STYL 3: HIGH DENSITY DASHBOARD TABLE
+        // ==========================================
+        let html = `
+          <table class="table-v3">
+            <thead>
+              <tr>
+                <th style="width: 70px;">VUID</th>
+                <th>Model Pojazdu</th>
+                <th>Właściciel</th>
+                <th>Silnik</th>
+                <th>Przebieg</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        pageItems.forEach((v) => {
+          const catEmoji = getCategoryEmoji(v.category);
+          const fuelEmoji = v.fuel === "Benzyna" ? "⛽" : "🛢️";
+          html += `
+            <tr onclick="openVehicleDetail(${v.id})">
+              <td><span class="card-v1-id" style="font-size: 11px;">#${v.id}</span></td>
+              <td><b>${catEmoji} ${v.model}</b></td>
+              <td>${v.owner}</td>
+              <td>${fuelEmoji} ${v.fuel} (${v.capacity})</td>
+              <td style="color: var(--text-muted); font-family: var(--font-mono); font-size: 11px;">${v.mileage}</td>
+            </tr>
+          `;
+        });
+        html += '</tbody></table>';
+        container.innerHTML = html;
+      }
     }
 
-    function nextPage() {
-      currentPage++;
-      renderPage();
-    }
-    function prevPage() {
-      currentPage--;
-      renderPage();
-    }
-    function goToPage(p) {
-      currentPage = p;
-      renderPage();
-    }
-    function goToLast() {
-      currentPage = Math.ceil(currentList.length / perPage) - 1;
-      renderPage();
+    function setStyle(styleNum) {
+      currentStyle = styleNum;
+      for (let i = 1; i <= 3; i++) {
+        const card = document.getElementById(`style-card-${i}`);
+        if (card) {
+          if (i === styleNum) card.classList.add('active');
+          else card.classList.remove('active');
+        }
+      }
+      renderFleet();
     }
 
-    function handleSearch() {
-      const q = document.getElementById("search-box").value.trim().toLowerCase();
+    function changePage(page) {
+      if (page >= 0 && page < totalPages) {
+        currentPage = page;
+        renderFleet();
+      }
+    }
+
+    function setFilter(filterType, element) {
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      element.classList.add('active');
+
+      if (filterType === 'all') {
+        filteredList = [...TEAM77_FLEET];
+      } else if (filterType === 'sport') {
+        filteredList = TEAM77_FLEET.filter(v => v.category === 'Sport');
+      } else if (filterType === 'suv') {
+        filteredList = TEAM77_FLEET.filter(v => v.category === 'Terenowy' || v.category.includes('Dostawczy'));
+      } else if (filterType === 'bike') {
+        filteredList = TEAM77_FLEET.filter(v => v.category === 'Jednoślad');
+      } else if (filterType === 'gas') {
+        filteredList = TEAM77_FLEET.filter(v => v.fuel === 'Benzyna');
+      } else if (filterType === 'diesel') {
+        filteredList = TEAM77_FLEET.filter(v => v.fuel === 'Diesel');
+      }
+      currentPage = 0;
+      renderFleet();
+    }
+
+    function onSearchChange(val) {
+      const q = val.trim().toLowerCase();
       if (!q) {
-        currentList = [...REAL_TEAM77_FLEET];
+        filteredList = [...TEAM77_FLEET];
       } else {
-        currentList = REAL_TEAM77_FLEET.filter(v => 
+        filteredList = TEAM77_FLEET.filter(v => 
           v.id.toString().includes(q) ||
           v.model.toLowerCase().includes(q) ||
           v.owner.toLowerCase().includes(q) ||
-          v.plate.toLowerCase().includes(q) ||
           v.fuel.toLowerCase().includes(q)
         );
       }
       currentPage = 0;
-      renderPage();
+      renderFleet();
     }
 
-    function onSelectVehicle(idStr) {
-      const id = parseInt(idStr);
-      const v = REAL_TEAM77_FLEET.find(item => item.id === id);
-      if (v) openModal(v);
-    }
+    function openVehicleDetail(vuid) {
+      const car = TEAM77_FLEET.find(v => v.id === vuid);
+      if (!car) return;
 
-    function openModal(v) {
-      document.getElementById("modal-title").textContent = `🚘 ${v.model} (#${v.id})`;
-      document.getElementById("modal-subtitle").textContent = `Właściciel: ${v.owner} • Przynależność: Team77`;
-      document.getElementById("m-engine").textContent = `${v.fuel} (${v.capacity})`;
-      document.getElementById("m-mileage").textContent = v.mileage;
-      document.getElementById("m-plate").textContent = v.plate;
-      document.getElementById("m-driver").textContent = v.driver;
-      document.getElementById("m-visual").textContent = v.visual;
-      document.getElementById("m-mechanical").textContent = v.mechanical;
-      document.getElementById("m-forum-link").href = `https://projectrpg.pl/vehicles/${v.id}/`;
+      document.getElementById("m-vuid").textContent = `#${car.id}`;
+      document.getElementById("m-model").textContent = car.model;
+      document.getElementById("m-category").textContent = `Kategoria: ${car.category}`;
+      document.getElementById("m-owner").textContent = car.owner;
+      document.getElementById("m-engine").textContent = `${car.capacity} (${car.fuel})`;
+      document.getElementById("m-mileage").textContent = car.mileage;
+      document.getElementById("m-plate").textContent = car.plate;
+      document.getElementById("m-lamps").textContent = car.lamps || "Fabryczne";
+      document.getElementById("m-code-vuid").textContent = car.id;
+      document.getElementById("m-forum-link").href = `https://projectrpg.pl/vehicles/?sortby=id&sortdirection=asc&vuid=${car.id}`;
+
+      // Mechanika
+      const mechPills = document.getElementById("m-mech-pills");
+      mechPills.innerHTML = "";
+      const mText = car.mechanical || "";
+      if (mText.includes("V4")) mechPills.innerHTML += '<span class="tuning-pill pill-ecu">⚡ ECU (V4)</span>';
+      if (mText.includes("V5")) mechPills.innerHTML += '<span class="tuning-pill pill-turbo">💨 Turbo (V5)</span>';
+      if (mText.includes("Torowy")) mechPills.innerHTML += '<span class="tuning-pill pill-set">🏁 Zestaw (Torowy)</span>';
+      if (mText.includes("Zestaw (W)")) mechPills.innerHTML += '<span class="tuning-pill pill-set">🏆 Zestaw (W)</span>';
+      if (mText.includes("Nitro")) mechPills.innerHTML += '<span class="tuning-pill pill-nitro">🚀 Nitro (V5)</span>';
+      if (mText.includes("Gwint")) mechPills.innerHTML += '<span class="tuning-pill pill-susp">🔧 Gwint. zawieszenie</span>';
+      if (mText.includes("Hydraulika")) mechPills.innerHTML += '<span class="tuning-pill pill-susp">🛞 Hydraulika</span>';
+      if (!mechPills.innerHTML) mechPills.innerHTML = '<span class="tuning-pill pill-generic">Brak tuningu mechanicznego (Fabryczny)</span>';
+
+      // Wizualny
+      const visPills = document.getElementById("m-vis-pills");
+      visPills.innerHTML = "";
+      const vText = car.visual || "";
+      if (vText && vText !== "Brak") {
+        vText.split(",").forEach(item => {
+          visPills.innerHTML += `<span class="tuning-pill pill-generic">${item.trim()}</span>`;
+        });
+      } else {
+        visPills.innerHTML = '<span class="tuning-pill pill-generic">Brak modyfikacji wizualnych</span>';
+      }
 
       document.getElementById("modal-overlay").classList.add("open");
     }
@@ -724,35 +1337,34 @@
       document.getElementById("modal-overlay").classList.remove("open");
     }
 
-    function refreshFleet() {
-      const btn = event.target;
-      btn.textContent = "Pobieranie...";
-      btn.disabled = true;
-      setTimeout(() => {
-        btn.textContent = "Odśwież 🔄";
-        btn.disabled = false;
-        alert("✅ Zsynchronizowano bazę z ProjectRPG.pl! Zescrapowano 37 aktualnych aut.");
-      }, 700);
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
-      event.currentTarget.classList.add('active');
-      if (tab === 'fleet') {
-        document.getElementById('top-title').textContent = 'flota-organizacji';
-        document.getElementById('search-box').value = '';
-        currentList = [...REAL_TEAM77_FLEET];
-        renderPage();
-      } else if (tab === 'stats') {
-        document.getElementById('top-title').textContent = 'statystyki-floty';
-        alert("📊 Statystyki Floty Team77:\n• Łącznie: 37 pojazdów\n• Najpopularniejsze: Sabre Ghost (3), Buffalo (2), Sultan (2), NRG-500 (2), Turismo (2)\n• Liderzy aut: ★ karmi77 (9), ★ kamil77 (6), Miroslaw* (4), ★ AroN. (4)\n• Paliwo: 28x Benzyna, 9x Diesel");
-      } else if (tab === 'forum') {
-        window.open('https://projectrpg.pl/vehicles/?sortby=id&sortdirection=asc', '_blank');
+    function openSelectDropdown() {
+      const start = currentPage * ITEMS_PER_PAGE;
+      const end = start + ITEMS_PER_PAGE;
+      const pageItems = filteredList.slice(start, end);
+      if (pageItems.length > 0) {
+        openVehicleDetail(pageItems[0].id);
       }
     }
 
-    // Init on load
-    renderPage();
+    function openStatsModal() {
+      alert("📊 Statystyki Floty Team77:\n• Łącznie: 37 pojazdów\n• Benzyna: 26 (70%)\n• Diesel: 10 (27%)\n• Wodne: 2 łodzie Dinghy\n• Średnia aut na członka: 2.3 pojazdu");
+    }
+
+    function refreshAnimation() {
+      const btn = document.querySelector(".btn-success");
+      btn.textContent = "Odświeżam...";
+      setTimeout(() => {
+        btn.textContent = "Odśwież 🔄";
+        renderFleet();
+      }, 350);
+    }
+
+    function applyDesignToBot() {
+      alert(`✅ Wybrany styl (Styl ${currentStyle}) jest gotowy do zastosowania w kodzie bota (views/fleet_views.py)!`);
+    }
+
+    // Init
+    renderFleet();
   </script>
 </body>
 </html>

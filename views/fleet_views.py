@@ -1,10 +1,12 @@
 """
 Widoki Discord UI (przyciski, paginacja, select menu) dla modułu floty pojazdów Team77.
+Styl 1: Nowoczesne Karty 2-kolumnowe z badge'ami kategorii, paliwa i eleganckimi detalami.
 """
 
 from __future__ import annotations
 
 import math
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import discord
@@ -16,50 +18,74 @@ if TYPE_CHECKING:
 ITEMS_PER_PAGE = 6
 
 
+def get_vehicle_emoji(model_name: str) -> str:
+    """Zwraca dedykowany emoji w zależności od typu pojazdu."""
+    m = model_name.lower()
+    if any(x in m for x in ("nrg", "fcr", "pcj", "bf-400", "sanchez", "freeway", "wayfarer", "faggio", "pizzaboy")):
+        return "🏍️"
+    if any(x in m for x in ("dinghy", "speeder", "marquis", "jetmax", "tropic", "coastguard", "reefer", "predator")):
+        return "🛥️"
+    if any(x in m for x in ("rancher", "huntley", "landstalker", "patriot", "mesa", "sandking", "yosemite", "bobcat")):
+        return "🚙"
+    if any(x in m for x in ("benson", "mule", "yankee", "boxville", "rumpo", "burrito", "pony", "camper")):
+        return "🚚"
+    if any(x in m for x in ("sultan", "buffalo", "jester", "elegy", "euros", "cheetah", "bullet", "turismo", "infernus", "flash", "comet", "zr-350", "banshee", "sabre", "alpha", "zenith", "fortune")):
+        return "🏎️"
+    return "🚗"
+
+
 def build_fleet_embed(
     vehicles: list[dict[str, Any]],
     page: int,
     total_pages: int,
     search_query: str | None = None,
 ) -> discord.Embed:
-    """Tworzy estetyczny embed ze stroną floty organizacji."""
+    """Tworzy ulepszony embed ze stroną floty organizacji w Stylu 1 (Karty 2-Kolumnowe)."""
+    gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
+    diesel_count = sum(1 for x in vehicles if x.get("fuel") == "Diesel")
+    other_count = len(vehicles) - gas_count - diesel_count
+
+    stats_line = f"🏎️ **{len(vehicles)}** aut  │  ⛽ **{gas_count}** benzyna  │  🛢️ **{diesel_count}** diesel"
+    if other_count > 0:
+        stats_line += f"  │  ⚡ **{other_count}** inne"
+
     embed = discord.Embed(
         title="🚗 Flota Pojazdów Organizacji Team77",
         description=(
-            f"Oficjalna baza pojazdów pobrana na żywo z **[ProjectRPG.pl/vehicles](https://projectrpg.pl/vehicles/)**.\n"
-            f"Łącznie w organizacji: **{len(vehicles)}** pojazdów.\n"
-            f"> *Wybierz pojazd z poniższego menu, aby sprawdzić jego tuning i dane.*"
+            f"{stats_line}\n"
+            f"Oficjalna baza pobrana na żywo z **[ProjectRPG.pl/vehicles](https://projectrpg.pl/vehicles/)**.\n"
+            f"> 💡 *Wybierz pojazd z poniższego menu, aby wyświetlić tuning i historię.*"
         ),
         color=0xE67E22,
     )
     if search_query:
-        embed.description = f"🔍 Wyniki wyszukiwania dla: `{search_query}` ({len(vehicles)} aut)\n\n" + embed.description
+        embed.description = f"🔍 **Wyniki wyszukiwania dla:** `{search_query}` ({len(vehicles)} aut)\n\n" + embed.description
 
     start_idx = page * ITEMS_PER_PAGE
     end_idx = start_idx + ITEMS_PER_PAGE
     page_items = vehicles[start_idx:end_idx]
 
     if not page_items:
-        embed.add_field(name="Brak wyników", value="Nie znaleziono pojazdów spełniających kryteria.", inline=False)
+        embed.add_field(name="Brak wyników", value="Nie znaleziono pojazdów spełniających podane kryteria.", inline=False)
         return embed
 
     for idx, v in enumerate(page_items, start_idx + 1):
+        cat_emoji = get_vehicle_emoji(v.get("model", ""))
         fuel_badge = "⛽" if v.get("fuel") == "Benzyna" else "🛢️"
         cap = f" ({v['capacity']})" if v.get("capacity") else ""
         engine_str = f"{fuel_badge} {v.get('fuel', '—')}{cap}"
-        
+
         embed.add_field(
-            name=f"{idx}. #{v['id']} • {v['model']}",
+            name=f"{catEmoji if (catEmoji := cat_emoji) else '🚗'} #{v['id']} • {v['model']}",
             value=(
                 f"> 👤 **Właściciel:** `{v['owner']}`\n"
-                f"> ⚙️ **Silnik:** {engine_str}\n"
-                f"> 🔗 **[Zobacz na Forum]({v['detail_url']})**"
+                f"> ⚙️ **Silnik:** {engine_str}"
             ),
             inline=True,
         )
 
     embed.set_footer(
-        text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 ProjectRPG",
+        text=f"Strona {page + 1} z {max(1, total_pages)} • Team77 ProjectRPG • Ostatnia synchronizacja: przed chwilą",
         icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
     )
     return embed
@@ -67,63 +93,106 @@ def build_fleet_embed(
 
 def build_detail_embed(detail: dict[str, Any]) -> discord.Embed:
     """Tworzy embed ze szczegółową specyfikacją techniczną danego pojazdu."""
+    model_name = detail.get("model", "Pojazd")
+    cat_emoji = get_vehicle_emoji(model_name)
+
     embed = discord.Embed(
-        title=f"🚘 Specyfikacja Pojazdu #{detail['id']} • {detail['model']}",
+        title=f"{cat_emoji} Specyfikacja Pojazdu #{detail['id']} • {model_name}",
         url=detail.get("url"),
         color=0x3498DB,
     )
+
+    owner_str = detail.get("owner", "—")
     embed.add_field(
-        name="📋 Główne Informacje",
+        name="📋 Podstawowe Informacje",
         value=(
-            f"• **VUID:** `#{detail['id']}`\n"
-            f"• **Model:** `{detail['model']}`\n"
-            f"• **Silnik:** `{detail['engine']}`\n"
-            f"• **Przebieg:** `{detail['mileage']}`\n"
-            f"• **Tablica:** `{detail['plate']}`\n"
-            f"• **Przegląd techniczny:** `{detail['tech_review']}`\n"
-            f"• **Przynależność:** `{detail['membership']}`"
+            f"• 👤 **Właściciel:** `{owner_str}`\n"
+            f"• ⚙️ **Silnik:** `{detail.get('engine', '—')}`\n"
+            f"• 🛣️ **Przebieg:** `{detail.get('mileage', '—')}`\n"
+            f"• 🚘 **Tablica:** `{detail.get('plate', '—')}`\n"
+            f"• 🛠️ **Przegląd:** `{detail.get('tech_review', '—')}`\n"
+            f"• 🏢 **Przynależność:** `{detail.get('membership', 'Team77')}`"
         ),
         inline=False,
     )
-    embed.add_field(
-        name="👤 Ostatni Kierowca",
-        value=f"**{detail['last_driver']}**",
-        inline=False,
-    )
-    embed.add_field(
-        name="🎨 Tuning Wizualny",
-        value=f"```\n{detail['visual_tuning']}\n```",
-        inline=False,
-    )
+
+    mech_tuning = detail.get("mechanical_tuning", "").strip() or "Brak modyfikacji mechanicznych (Fabryczny)"
     embed.add_field(
         name="🔧 Tuning Mechaniczny",
-        value=f"```\n{detail['mechanical_tuning']}\n```",
+        value=f"```\n{mech_tuning}\n```",
         inline=False,
     )
-    if detail.get("lamp_color"):
+
+    vis_tuning = detail.get("visual_tuning", "").strip() or "Brak modyfikacji wizualnych"
+    embed.add_field(
+        name="🎨 Tuning Wizualny",
+        value=f"```\n{vis_tuning}\n```",
+        inline=False,
+    )
+
+    if detail.get("lamp_color") and detail["lamp_color"] != "Brak":
         embed.add_field(name="💡 Kolor Świateł", value=f"`{detail['lamp_color']}`", inline=True)
 
+    last_driver = detail.get("last_driver", "—")
+    drivers_val = f"**{last_driver}**"
     if detail.get("recent_drivers"):
-        drivers_list = "\n".join(f"• {d}" for d in detail["recent_drivers"])
-        embed.add_field(name="🕒 Historia Ostatnich Kierowców", value=drivers_list, inline=False)
+        d_lines = [f"{i+1}. `{d}`" for i, d in enumerate(detail["recent_drivers"][:5])]
+        drivers_val += "\n" + "\n".join(d_lines)
+
+    embed.add_field(
+        name="🕒 Ostatni Kierowcy w Grze",
+        value=drivers_val,
+        inline=False,
+    )
 
     embed.set_footer(
-        text="Dane pobrane na żywo z bazy pojazdów ProjectRPG.pl",
+        text=f"Baza pojazdów ProjectRPG.pl • VUID: #{detail['id']}",
+        icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
+    )
+    return embed
+
+
+def build_stats_embed(vehicles: list[dict[str, Any]]) -> discord.Embed:
+    """Tworzy embed z kompleksowym raportem statystycznym floty Team77."""
+    total_count = len(vehicles)
+    models_counter = Counter(v["model"] for v in vehicles)
+    owners_counter = Counter(v["owner"] for v in vehicles)
+    fuels_counter = Counter(v.get("fuel", "Nieznane") for v in vehicles)
+
+    top_models = "\n".join(f"• **{m}**: `{c} szt.`" for m, c in models_counter.most_common(6))
+    top_owners = "\n".join(f"• **{o}**: `{c} aut`" for o, c in owners_counter.most_common(6))
+    fuels_str = "  │  ".join(f"**{f}**: `{c}`" for f, c in fuels_counter.items())
+
+    embed = discord.Embed(
+        title="📊 Raport i Statystyki Floty Team77",
+        description=(
+            f"Łączna wielkość floty organizacji: **{total_count} pojazdów**.\n"
+            f"Średnia liczba aut przypisanych do członka: **{total_count / max(1, len(owners_counter)):.1f}**\n\n"
+            f"⛽ **Podział rodzajów paliwa:**\n{fuels_str}"
+        ),
+        color=0x2ECC71,
+    )
+    embed.add_field(name="🏎️ Najpopularniejsze Modele", value=top_models, inline=True)
+    embed.add_field(name="👑 Najwięcej Aut w Org", value=top_owners, inline=True)
+    embed.set_footer(
+        text="Baza pojazdów ProjectRPG.pl • Team77",
         icon_url="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png",
     )
     return embed
 
 
 class FleetVehicleSelect(ui.Select):
-    """Dropdown pozwalający wybrać konkretny pojazd z bieżącej strony, by podejrzeć detale."""
+    """Dropdown pozwalający wybrać konkretny pojazd z bieżącej strony z emoji kategorii."""
 
     def __init__(self, vehicles_on_page: list[dict[str, Any]], fleet_service: FleetService) -> None:
         self.fleet_service = fleet_service
         options = []
         for v in vehicles_on_page[:25]:
+            emoji = get_vehicle_emoji(v.get("model", ""))
             label = f"#{v['id']} {v['model'][:25]}"
-            desc = f"Właściciel: {v['owner'][:20]} • {v.get('fuel', '')}"
-            options.append(discord.SelectOption(label=label, value=str(v["id"]), description=desc[:50]))
+            fuel_desc = f"{v.get('fuel', '')} ({v.get('capacity', '')})" if v.get("capacity") else v.get("fuel", "")
+            desc = f"{v['owner'][:18]} • {fuel_desc}"[:50]
+            options.append(discord.SelectOption(label=label, emoji=emoji, value=str(v["id"]), description=desc))
 
         super().__init__(
             placeholder="🔎 Wybierz pojazd z tej strony, by sprawdzić szczegóły...",
@@ -187,6 +256,7 @@ class FleetPaginationView(ui.View):
             disabled=(self.current_page >= self.total_pages - 1),
         )
         btn_refresh = ui.Button(label="Odśwież 🔄", style=discord.ButtonStyle.success)
+        btn_stats = ui.Button(label="Statystyki 📊", style=discord.ButtonStyle.secondary)
 
         async def _first(interaction: discord.Interaction):
             self.current_page = 0
@@ -241,11 +311,16 @@ class FleetPaginationView(ui.View):
                 view=self,
             )
 
+        async def _show_stats(interaction: discord.Interaction):
+            stats_embed = build_stats_embed(self.vehicles)
+            await interaction.response.send_message(embed=stats_embed, ephemeral=True)
+
         btn_first.callback = _first
         btn_prev.callback = _prev
         btn_next.callback = _next
         btn_last.callback = _last
         btn_refresh.callback = _refresh
+        btn_stats.callback = _show_stats
 
         self.add_item(btn_first)
         self.add_item(btn_prev)
@@ -253,6 +328,7 @@ class FleetPaginationView(ui.View):
         self.add_item(btn_next)
         self.add_item(btn_last)
         self.add_item(btn_refresh)
+        self.add_item(btn_stats)
 
         # Select menu dla bieżącej strony
         start_idx = self.current_page * ITEMS_PER_PAGE
