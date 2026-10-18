@@ -17,7 +17,7 @@ from services.fleet_image_service import generate_fleet_cards_image
 if TYPE_CHECKING:
     from services.fleet_service import FleetService
 
-ITEMS_PER_PAGE = 6
+ITEMS_PER_PAGE = 5
 
 
 def get_vehicle_emoji(model_name: str) -> str:
