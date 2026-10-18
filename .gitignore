@@ -7,9 +7,11 @@
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/*
 *.db
 *.sqlite
 *.sqlite3
+*.db-*
 
 # Python cache & artifacts
 __pycache__/

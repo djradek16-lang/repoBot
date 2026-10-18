@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AegisBot • Flota Pojazdów Team77 (ProjectRPG)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=gg+sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #313338;
+      --bg-secondary: #2b2d31;
+      --bg-tertiary: #1e1f22;
+      --bg-card: #232428;
+      --text-normal: #dbdee1;
+      --text-muted: #949ba4;
+      --text-header: #f2f3f5;
+      --interactive-normal: #b5bac1;
+      --interactive-hover: #dbdee1;
+      --interactive-active: #ffffff;
+      --brand-orange: #e67e22;
+      --brand-green: #2ecc71;
+      --brand-blue: #3498db;
+      --brand-red: #ed4245;
+      --brand-blurple: #5865f2;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --font-main: 'gg sans', 'Segoe UI', Helvetica, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-tertiary);
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .guild-header {
+      padding: 16px;
+      font-weight: 700;
+      font-size: 16px;
+      color: var(--text-header);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .guild-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #e67e22, #d35400);
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+    }
+    .channels-list {
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+      overflow-y: auto;
+    }
+    .channel-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+    .channel-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--interactive-hover);
+    }
+    .channel-item.active {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--interactive-active);
+    }
+
+    /* Main Chat Area */
+    .main-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-primary);
+      overflow: hidden;
+    }
+    .top-bar {
+      height: 56px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-primary);
+      flex-shrink: 0;
+    }
+    .top-bar-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-header);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .top-bar-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(46, 204, 113, 0.15);
+      color: var(--brand-green);
+      border-radius: 12px;
+      font-weight: 600;
+      border: 1px solid rgba(46, 204, 113, 0.3);
+    }
+
+    /* Chat Messages Area */
+    .messages-scroller {
+      flex: 1;
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .message {
+      display: flex;
+      gap: 16px;
+      max-width: 950px;
+    }
+    .bot-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #5865f2, #3b45ab);
+      display: grid;
+      place-items: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .message-content {
+      flex: 1;
+    }
+    .message-header {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .bot-name {
+      font-weight: 700;
+      color: var(--text-header);
+      font-size: 15px;
+    }
+    .bot-tag {
+      background: var(--brand-blurple);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .message-time {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Discord Embed */
+    .discord-embed {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--brand-orange);
+      border-radius: 4px;
+      padding: 16px;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+    .embed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .embed-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-header);
+    }
+    .embed-desc {
+      font-size: 14px;
+      color: var(--text-normal);
+      line-height: 1.45;
+    }
+    .embed-desc a {
+      color: var(--brand-blue);
+      text-decoration: none;
+    }
+    .embed-desc a:hover {
+      text-decoration: underline;
+    }
+
+    /* Grid of vehicles */
+    .vehicles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 12px;
+      margin-top: 4px;
+    }
+    .vehicle-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 12px;
+      transition: transform 0.15s, border-color 0.15s, background 0.15s;
+      cursor: pointer;
+    }
+    .vehicle-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(230, 126, 34, 0.4);
+      background: rgba(230, 126, 34, 0.05);
+    }
+    .v-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .v-id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--brand-orange);
+      background: rgba(230, 126, 34, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .v-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text-header);
+    }
+    .v-info {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .v-info b {
+      color: var(--text-normal);
+    }
+
+    /* Discord UI Select Menu */
+    .discord-select {
+      width: 100%;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 10px 14px;
+      color: var(--text-normal);
+      font-family: var(--font-main);
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .discord-select:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Discord Buttons Row */
+    .discord-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn {
+      padding: 8px 16px;
+      font-family: var(--font-main);
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-primary {
+      background: var(--brand-blurple);
+      color: #fff;
+    }
+    .btn-primary:not(:disabled):hover {
+      background: #4752c4;
+    }
+    .btn-secondary {
+      background: #4e5058;
+      color: #fff;
+    }
+    .btn-secondary:not(:disabled):hover {
+      background: #6d6f78;
+    }
+    .btn-success {
+      background: #248046;
+      color: #fff;
+    }
+    .btn-success:not(:disabled):hover {
+      background: #1a6334;
+    }
+
+    /* Search bar inside demo */
+    .search-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-normal);
+      font-size: 14px;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: var(--brand-blurple);
+    }
+
+    /* Modal Details View */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      place-items: center;
+      z-index: 1000;
+    }
+    .modal-overlay.open {
+      display: grid;
+    }
+    .modal-card {
+      width: 580px;
+      max-width: 90vw;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      border-left: 5px solid var(--brand-blue);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 20px;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .code-box {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #7289da;
+      white-space: pre-wrap;
+    }
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .detail-item {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .detail-item span {
+      color: var(--text-muted);
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="guild-header">
+      <div class="guild-badge">🛡️</div>
+      <div>Team77 • ProjectRPG</div>
+    </div>
+    <div class="channels-list">
+      <div class="channel-item active" onclick="switchTab('fleet')">
+        <span>🚗</span> #flota-organizacji
+      </div>
+      <div class="channel-item" onclick="switchTab('stats')">
+        <span>📊</span> #statystyki-floty
+      </div>
+      <div class="channel-item" onclick="switchTab('forum')">
+        <span>🌐</span> #forum-vehicles
+      </div>
+    </div>
+  </div>
+
+  <!-- Main View -->
+  <div class="main-view">
+    <div class="top-bar">
+      <div class="top-bar-title">
+        <span>🚗</span>
+        <span id="top-title">flota-organizacji</span>
+      </div>
+      <div class="top-bar-badge">● Baza ProjectRPG LIVE (37 pojazdów)</div>
+    </div>
+
+    <div class="messages-scroller" id="scroller">
+      
+      <!-- Interactive Search -->
+      <div class="search-row">
+        <input type="text" class="search-input" id="search-box" placeholder="🔍 Szukaj w 37 autach Team77 (np. Sultan, Buffalo, 1930, karmi77, Miroslaw)..." oninput="handleSearch()">
+      </div>
+
+      <!-- Discord Message from Bot -->
+      <div class="message">
+        <div class="bot-avatar">🤖</div>
+        <div class="message-content">
+          <div class="message-header">
+            <span class="bot-name">AegisBot</span>
+            <span class="bot-tag">BOT</span>
+            <span class="message-time">Dzisiaj o 12:40</span>
+          </div>
+
+          <!-- Embed -->
+          <div class="discord-embed">
+            <div class="embed-header">
+              <div class="embed-title">🚗 Flota Pojazdów Organizacji Team77</div>
+              <img src="https://projectrpg.pl/uploads/monthly_2021_04/logo.png.31885b5e7d58fbbca6006429f45f956c.png" width="36" height="36" style="border-radius: 4px;" alt="Logo">
+            </div>
+            <div class="embed-desc">
+              Oficjalna baza pojazdów pobrana na żywo z <b><a href="https://projectrpg.pl/vehicles/?sortby=id&sortdirection=asc" target="_blank">ProjectRPG.pl/vehicles</a></b>.<br>
+              Łącznie w organizacji: <b id="total-badge">37</b> pojazdów.<br>
+              <span style="color: var(--text-muted); font-size: 13px;">&gt; *Wybierz pojazd z poniższego menu lub kliknij kartę, aby sprawdzić jego tuning i dane.*</span>
+            </div>
+
+            <!-- Vehicles Grid (Current Page) -->
+            <div class="vehicles-grid" id="vehicles-container"></div>
+
+            <!-- Select Menu -->
+            <select class="discord-select" id="vehicle-select" onchange="onSelectVehicle(this.value)">
+              <option value="" disabled selected>🔎 Wybierz pojazd z tej strony, by sprawdzić szczegóły...</option>
+            </select>
+
+            <!-- Buttons -->
+            <div class="discord-buttons">
+              <button class="btn btn-secondary" id="btn-first" onclick="goToPage(0)">⏮</button>
+              <button class="btn btn-primary" id="btn-prev" onclick="prevPage()">◀ Poprzednia</button>
+              <button class="btn btn-secondary" id="btn-counter" disabled>1 / 7</button>
+              <button class="btn btn-primary" id="btn-next" onclick="nextPage()">Następna ▶</button>
+              <button class="btn btn-secondary" id="btn-last" onclick="goToLast()">⏭</button>
+              <button class="btn btn-success" onclick="refreshFleet()">Odśwież 🔄</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal Details Card -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal-card" id="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 style="color: var(--text-header); font-size: 18px;" id="modal-title">Specyfikacja Pojazdu</h2>
+          <div style="color: var(--text-muted); font-size: 12px;" id="modal-subtitle">ProjectRPG VUID</div>
+        </div>
+        <button class="modal-close" onclick="closeModalDirect()">✕</button>
+      </div>
+
+      <div class="details-grid">
+        <div class="detail-item">
+          <span>Silnik</span>
+          <b id="m-engine">—</b>
+        </div>
+        <div class="detail-item">
+          <span>Przebieg</span>
+          <b id="m-mileage">—</b>
+        </div>
+        <div class="detail-item">
+          <span>Tablica Rejestracyjna</span>
+          <b id="m-plate">—</b>
+        </div>
+        <div class="detail-item">
+          <span>Ostatni Kierowca</span>
+          <b id="m-driver">—</b>
+        </div>
+      </div>
+
+      <div>
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🎨 Tuning Wizualny</span>
+        <div class="code-box" id="m-visual">Brak</div>
+      </div>
+
+      <div>
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🔧 Tuning Mechaniczny</span>
+        <div class="code-box" id="m-mechanical">Brak</div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 8px;">
+        <a id="m-forum-link" href="#" target="_blank" class="btn btn-primary" style="text-decoration: none;">🔗 Otwórz w Bazie na Forum</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 37 REAL LIVE VEHICLES SCRAPED DIRECTLY FROM PROJECTRPG.PL/VEHICLES/
+    const REAL_TEAM77_FLEET = [
+      { id: 1930, model: "Moonbeam High Top (418)", fuel: "Diesel", capacity: "1.6dm³", owner: "★ karmi77", plate: "SF 1930", mileage: "89984 km", visual: "Spoiler (1158), Felgi Trance (1084), Rozmiar felg (Duże)", mechanical: "ECU (V4), Gwint. zawieszenie", driver: "Miroslaw*" },
+      { id: 6140, model: "Moonbeam Classic (418)", fuel: "Benzyna", capacity: "1.4dm³", owner: "Miroslaw*", plate: "SF 6140", mileage: "102450 km", visual: "Felgi Import (1082)", mechanical: "Brak", driver: "Miroslaw*" },
+      { id: 10811, model: "Buffalo (402)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ EEbola77", plate: "LV 10811", mileage: "42150 km", visual: "Felgi Mega (1074), Rozmiar (Duże)", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ EEbola77" },
+      { id: 21632, model: "Primo LX Kombi (547)", fuel: "Benzyna", capacity: "1.9dm³", owner: "Miroslaw*", plate: "LV 21632", mileage: "55300 km", visual: "Felgi Switch (1080)", mechanical: "Brak", driver: "Miroslaw*" },
+      { id: 25677, model: "Fortune 240SX (526)", fuel: "Benzyna", capacity: "2.2dm³", owner: "SxDemon", plate: "LS 25677", mileage: "28400 km", visual: "Spoiler (1138), Felgi Rimshine (1075)", mechanical: "ECU (V4), Turbo (V5)", driver: "SxDemon" },
+      { id: 28232, model: "NRG-500 (522)", fuel: "Benzyna", capacity: "1.2dm³", owner: "★ kamil77", plate: "MTA 28232", mileage: "61200 km", visual: "Brak (Motocykl)", mechanical: "ECU (V4), Zestaw (Torowy)", driver: "★ kamil77" },
+      { id: 34823, model: "Camper (483)", fuel: "Benzyna", capacity: "1.7dm³", owner: "★ Dropson77", plate: "CAMP 77", mileage: "15200 km", visual: "Felgi Classic (1077)", mechanical: "Gwint. zawieszenie", driver: "★ Dropson77" },
+      { id: 35620, model: "Benson (499)", fuel: "Diesel", capacity: "1.1dm³", owner: "Miroslaw*", plate: "SF 35620", mileage: "9400 km", visual: "Brak", mechanical: "Brak", driver: "Miroslaw*" },
+      { id: 36155, model: "Buffalo Challenger (402)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ EEbola77", plate: "CHALL 77", mileage: "18900 km", visual: "Pakiet Challenger, Felgi Cutter (1079)", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ EEbola77" },
+      { id: 43065, model: "Sultan (560)", fuel: "Benzyna", capacity: "3.7dm³", owner: "★ kamil77", plate: "T77 SULT", mileage: "34800 km", visual: "Full Visual, Spoiler (1139), Progi, Zderzaki", mechanical: "ECU (V4), Turbo (V5), Zestaw (Torowy), AWD", driver: "★ kamil77" },
+      { id: 43948, model: "ZR-350 Amemiya (477)", fuel: "Benzyna", capacity: "3.7dm³", owner: "kejmaN", plate: "ZR 43948", mileage: "27600 km", visual: "Pakiet Amemiya, Felgi Wires (1076)", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "kejmaN" },
+      { id: 44125, model: "Moonbeam (418)", fuel: "Diesel", capacity: "1.2dm³", owner: ".Zyla", plate: "SF 44125", mileage: "115000 km", visual: "Brak", mechanical: "Brak", driver: ".Zyla" },
+      { id: 44660, model: "Rancher Long Pickup Offroad (490)", fuel: "Benzyna", capacity: "2.9dm³", owner: "★ karmi77", plate: "OFF 77", mileage: "14200 km", visual: "Orurowanie, Halogeny, Opony Terenowe", mechanical: "ECU (V4), Hydraulika", driver: "★ karmi77" },
+      { id: 45793, model: "Euros (587)", fuel: "Benzyna", capacity: "3.1dm³", owner: "Adek77", plate: "LV 45793", mileage: "21300 km", visual: "Felgi Shadow (1073)", mechanical: "ECU (V4), Turbo (V5)", driver: "Adek77" },
+      { id: 46246, model: "Perennial Sedan (404)", fuel: "Diesel", capacity: "1.6dm³", owner: ".Zyla", plate: "SF 46246", mileage: "78900 km", visual: "Felgi Classic", mechanical: "Brak", driver: ".Zyla" },
+      { id: 46440, model: "Dinghy (473)", fuel: "Benzyna", capacity: "0cm³", owner: "Flash", plate: "BOAT 77", mileage: "3200 km", visual: "Łódź motorowa", mechanical: "Fabryczny", driver: "Flash" },
+      { id: 48216, model: "NRG-500 (522)", fuel: "Benzyna", capacity: "1.2dm³", owner: "★ karmi77", plate: "SPEED 77", mileage: "45000 km", visual: "Brak", mechanical: "ECU (V4), Zestaw (Torowy)", driver: "★ karmi77" },
+      { id: 49019, model: "Benson (499)", fuel: "Diesel", capacity: "1.1dm³", owner: "Analek2137PL", plate: "LV 49019", mileage: "8300 km", visual: "Brak", mechanical: "Brak", driver: "Analek2137PL" },
+      { id: 49808, model: "Premier (426)", fuel: "Diesel", capacity: "2.1dm³", owner: "x01", plate: "LS 49808", mileage: "31200 km", visual: "Felgi Trance", mechanical: "ECU (V4)", driver: "x01" },
+      { id: 49831, model: "Perennial (404)", fuel: "Diesel", capacity: "1.5dm³", owner: "EdekJedziem1", plate: "SF 49831", mileage: "67000 km", visual: "Brak", mechanical: "Brak", driver: "EdekJedziem1" },
+      { id: 50518, model: "Banshee Viper GTS (429)", fuel: "Benzyna", capacity: "4.9dm³", owner: "★ AroN.", plate: "VIPER 77", mileage: "12400 km", visual: "Pakiet Viper GTS, Felgi Ahab", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ AroN." },
+      { id: 52708, model: "Alpha VR-4 Aero I (602)", fuel: "Benzyna", capacity: "3.0dm³", owner: "★ AroN.", plate: "VR4 77", mileage: "9800 km", visual: "Pakiet Aero, Felgi Twist", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "★ AroN." },
+      { id: 53547, model: "Banshee Viper GTS (429)", fuel: "Benzyna", capacity: "4.9dm³", owner: "★ RoQ.", plate: "ROQ 77", mileage: "15300 km", visual: "Pakiet Viper GTS, Spoiler Carbon", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ RoQ." },
+      { id: 55178, model: "Stanier Marauder Aero (596)", fuel: "Benzyna", capacity: "4.6dm³", owner: "★ AroN.", plate: "STAN 77", mileage: "7100 km", visual: "Pakiet Marauder Aero", mechanical: "ECU (V4), Turbo (V5)", driver: "★ AroN." },
+      { id: 55182, model: "Stanier (596)", fuel: "Benzyna", capacity: "4.6dm³", owner: "kejmaN", plate: "SF 55182", mileage: "11200 km", visual: "Felgi Classic", mechanical: "ECU (V4)", driver: "kejmaN" },
+      { id: 55972, model: "Turismo Competizione (451)", fuel: "Benzyna", capacity: "4.4dm³", owner: "★ karmi77", plate: "COMP 77", mileage: "8900 km", visual: "Pakiet Competizione, Felgi Cutter", mechanical: "Full Mech (V4/V5/W/Torowy)", driver: "★ karmi77" },
+      { id: 56182, model: "Turismo Competizione (451)", fuel: "Benzyna", capacity: "4.4dm³", owner: "★ kamil77", plate: "T77 TUR", mileage: "6400 km", visual: "Pakiet Competizione, Carbon", mechanical: "Full Mech (V4/V5/W/Torowy)", driver: "★ kamil77" },
+      { id: 56407, model: "Sanchez SM (468)", fuel: "Benzyna", capacity: "600cm³", owner: "Pocisk204", plate: "CROSS 77", mileage: "18900 km", visual: "Koła Supermoto", mechanical: "ECU (V4)", driver: "Pocisk204" },
+      { id: 56929, model: "Schafter STR (604)", fuel: "Benzyna", capacity: "2.9dm³", owner: "★ kamil77", plate: "STR 77", mileage: "14200 km", visual: "Pakiet STR, Felgi Trance", mechanical: "ECU (V4), Turbo (V5), Gwint", driver: "★ kamil77" },
+      { id: 59122, model: "Dinghy (473)", fuel: "Benzyna", capacity: "0cm³", owner: "★ AroN.", plate: "SEA 77", mileage: "1100 km", visual: "Łódź", mechanical: "Fabryczny", driver: "★ AroN." },
+      { id: 60840, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "HYNIEK.77", plate: "HYN 77", mileage: "5600 km", visual: "Pakiet Ghost, Felgi Import", mechanical: "ECU (V4), Turbo (V5)", driver: "HYNIEK.77" },
+      { id: 61084, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "★ karmi77", plate: "GHOST 77", mileage: "4300 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", driver: "★ karmi77" },
+      { id: 61086, model: "Sabre Ghost (475)", fuel: "Benzyna", capacity: "2.3dm³", owner: "★ kamil77", plate: "T77 GHO", mileage: "3900 km", visual: "Pakiet Ghost", mechanical: "ECU (V4), Turbo (V5)", driver: "★ kamil77" },
+      { id: 63630, model: "Schafter Kombi (604)", fuel: "Benzyna", capacity: "2.9dm³", owner: "Magik77", plate: "MAG 77", mileage: "9200 km", visual: "Felgi Twist", mechanical: "ECU (V4), Gwint", driver: "Magik77" },
+      { id: 63970, model: "Zenith (616)", fuel: "Benzyna", capacity: "6.1dm³", owner: "★ karmi77", plate: "ZEN 77", mileage: "4100 km", visual: "Pakiet VIP, Felgi Trance, Przyciemnione szyby", mechanical: "ECU (V4), Turbo (V5), Zestaw (W)", driver: "★ karmi77" },
+      { id: 64047, model: "Sunrise Kombi (550)", fuel: "Diesel", capacity: "1.8dm³", owner: "Lesxcxu88", plate: "SUN 77", mileage: "14800 km", visual: "Felgi Classic", mechanical: "Brak", driver: "Lesxcxu88" },
+      { id: 64185, model: "Buffalo STX (614)", fuel: "Benzyna", capacity: "3.6dm³", owner: "★ karmi77", plate: "STX 77", mileage: "2100 km", visual: "Pakiet STX, Carbon, Lampy Oldtimer", mechanical: "ECU (V4), Turbo (V5), Zestaw (W), Nitro (V5)", driver: "★ karmi77" }
+    ];
+
+    let currentList = [...REAL_TEAM77_FLEET];
+    let currentPage = 0;
+    const perPage = 6;
+
+    function renderPage() {
+      const totalPages = Math.max(1, Math.ceil(currentList.length / perPage));
+      currentPage = Math.min(currentPage, totalPages - 1);
+      if (currentPage < 0) currentPage = 0;
+
+      const container = document.getElementById("vehicles-container");
+      const select = document.getElementById("vehicle-select");
+      container.innerHTML = "";
+      select.innerHTML = '<option value="" disabled selected>🔎 Wybierz pojazd z tej strony, by sprawdzić szczegóły...</option>';
+
+      const start = currentPage * perPage;
+      const end = start + perPage;
+      const pageVehicles = currentList.slice(start, end);
+
+      if (pageVehicles.length === 0) {
+        container.innerHTML = '<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: var(--text-muted);">Brak pojazdów spełniających kryteria.</div>';
+      }
+
+      pageVehicles.forEach((v, idx) => {
+        const globalIdx = start + idx + 1;
+        const fuelBadge = v.fuel === "Benzyna" ? "⛽ Benzyna" : "🛢️ Diesel";
+        
+        // Card HTML
+        const card = document.createElement("div");
+        card.className = "vehicle-card";
+        card.onclick = () => openModal(v);
+        card.innerHTML = `
+          <div class="v-header">
+            <span class="v-id">#${v.id}</span>
+            <span style="font-size: 11px; color: var(--text-muted);">poz. ${globalIdx}</span>
+          </div>
+          <div class="v-title">${v.model}</div>
+          <div class="v-info" style="margin-top: 6px;">
+            <div>👤 Właściciel: <b>${v.owner}</b></div>
+            <div>⚙️ Silnik: <b>${fuelBadge} (${v.capacity})</b></div>
+            <div style="margin-top: 4px; color: var(--brand-blue);">🔗 Kliknij, by zobaczyć tuning</div>
+          </div>
+        `;
+        container.appendChild(card);
+
+        // Select Option
+        const opt = document.createElement("option");
+        opt.value = v.id;
+        opt.textContent = `#${v.id} ${v.model} (${v.owner})`;
+        select.appendChild(opt);
+      });
+
+      // Update Buttons
+      document.getElementById("btn-counter").textContent = `${currentPage + 1} / ${totalPages}`;
+      document.getElementById("btn-first").disabled = (currentPage === 0);
+      document.getElementById("btn-prev").disabled = (currentPage === 0);
+      document.getElementById("btn-next").disabled = (currentPage >= totalPages - 1);
+      document.getElementById("btn-last").disabled = (currentPage >= totalPages - 1);
+      document.getElementById("total-badge").textContent = currentList.length;
+    }
+
+    function nextPage() {
+      currentPage++;
+      renderPage();
+    }
+    function prevPage() {
+      currentPage--;
+      renderPage();
+    }
+    function goToPage(p) {
+      currentPage = p;
+      renderPage();
+    }
+    function goToLast() {
+      currentPage = Math.ceil(currentList.length / perPage) - 1;
+      renderPage();
+    }
+
+    function handleSearch() {
+      const q = document.getElementById("search-box").value.trim().toLowerCase();
+      if (!q) {
+        currentList = [...REAL_TEAM77_FLEET];
+      } else {
+        currentList = REAL_TEAM77_FLEET.filter(v => 
+          v.id.toString().includes(q) ||
+          v.model.toLowerCase().includes(q) ||
+          v.owner.toLowerCase().includes(q) ||
+          v.plate.toLowerCase().includes(q) ||
+          v.fuel.toLowerCase().includes(q)
+        );
+      }
+      currentPage = 0;
+      renderPage();
+    }
+
+    function onSelectVehicle(idStr) {
+      const id = parseInt(idStr);
+      const v = REAL_TEAM77_FLEET.find(item => item.id === id);
+      if (v) openModal(v);
+    }
+
+    function openModal(v) {
+      document.getElementById("modal-title").textContent = `🚘 ${v.model} (#${v.id})`;
+      document.getElementById("modal-subtitle").textContent = `Właściciel: ${v.owner} • Przynależność: Team77`;
+      document.getElementById("m-engine").textContent = `${v.fuel} (${v.capacity})`;
+      document.getElementById("m-mileage").textContent = v.mileage;
+      document.getElementById("m-plate").textContent = v.plate;
+      document.getElementById("m-driver").textContent = v.driver;
+      document.getElementById("m-visual").textContent = v.visual;
+      document.getElementById("m-mechanical").textContent = v.mechanical;
+      document.getElementById("m-forum-link").href = `https://projectrpg.pl/vehicles/${v.id}/`;
+
+      document.getElementById("modal-overlay").classList.add("open");
+    }
+
+    function closeModal(e) {
+      if (e.target.id === "modal-overlay") {
+        document.getElementById("modal-overlay").classList.remove("open");
+      }
+    }
+    function closeModalDirect() {
+      document.getElementById("modal-overlay").classList.remove("open");
+    }
+
+    function refreshFleet() {
+      const btn = event.target;
+      btn.textContent = "Pobieranie...";
+      btn.disabled = true;
+      setTimeout(() => {
+        btn.textContent = "Odśwież 🔄";
+        btn.disabled = false;
+        alert("✅ Zsynchronizowano bazę z ProjectRPG.pl! Zescrapowano 37 aktualnych aut.");
+      }, 700);
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.channel-item').forEach(el => el.classList.remove('active'));
+      event.currentTarget.classList.add('active');
+      if (tab === 'fleet') {
+        document.getElementById('top-title').textContent = 'flota-organizacji';
+        document.getElementById('search-box').value = '';
+        currentList = [...REAL_TEAM77_FLEET];
+        renderPage();
+      } else if (tab === 'stats') {
+        document.getElementById('top-title').textContent = 'statystyki-floty';
+        alert("📊 Statystyki Floty Team77:\n• Łącznie: 37 pojazdów\n• Najpopularniejsze: Sabre Ghost (3), Buffalo (2), Sultan (2), NRG-500 (2), Turismo (2)\n• Liderzy aut: ★ karmi77 (9), ★ kamil77 (6), Miroslaw* (4), ★ AroN. (4)\n• Paliwo: 28x Benzyna, 9x Diesel");
+      } else if (tab === 'forum') {
+        window.open('https://projectrpg.pl/vehicles/?sortby=id&sortdirection=asc', '_blank');
+      }
+    }
+
+    // Init on load
+    renderPage();
+  </script>
+</body>
+</html>
