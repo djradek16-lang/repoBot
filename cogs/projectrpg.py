@@ -2587,7 +2587,7 @@ class ProjectRPGCog(commands.Cog):
         msg = await interaction.followup.send(embed=paginator.build_embed(), view=paginator, wait=True)
         paginator.message = msg
 
-    @prpg_group.command(name="organizacja", description="Pokazuje listę graczy (aktywnych 🟢 i nieaktywnych 🔴) należących do danej organizacji (domyślnie Team77).")
+    @prpg_group.command(name="organizacja", description="Pokazuje listę graczy (online i offline) należących do danej organizacji.")
     @app_commands.describe(nazwa="Nazwa organizacji do sprawdzenia (domyślnie: Team77)")
     async def prpg_organizacja(self, interaction: discord.Interaction, nazwa: Optional[str] = "Team77") -> None:
         await interaction.response.defer()
