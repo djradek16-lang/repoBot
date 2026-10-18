@@ -105,6 +105,8 @@ class AdministrationCog(commands.Cog):
         app_commands.Choice(name="Powitania (Welcome)", value="welcome_channel_id"),
         app_commands.Choice(name="Pożegnania (Goodbye)", value="goodbye_channel_id"),
         app_commands.Choice(name="Logi serwera", value="log_channel_id"),
+        app_commands.Choice(name="Logi usuniętych plików i zdjęć", value="attachment_log_channel_id"),
+        app_commands.Choice(name="Logi wejść/wyjść członków", value="member_log_channel_id"),
         app_commands.Choice(name="Sugestie", value="suggestion_channel_id"),
         app_commands.Choice(name="Panel Ticketów", value="ticket_channel_id"),
         app_commands.Choice(name="Raport dzienny statystyk głosowych", value="stats_channel_id"),
@@ -121,6 +123,9 @@ class AdministrationCog(commands.Cog):
             """,
             (interaction.guild_id, channel.id, channel.id)
         )
+        logs_cog = self.bot.get_cog("logs")
+        if logs_cog and hasattr(logs_cog, "invalidate_cache") and interaction.guild_id:
+            logs_cog.invalidate_cache(interaction.guild_id)
         await interaction.response.send_message(embed=success_embed("Zaktualizowano Ustawienia", f"Ustawiono kanał {channel.mention} dla modułu `{module}`."))
 
     @config_group.command(name="post_button", description="Wysyła na skonfigurowany kanał zgłoszeń przycisk otwierający formularz aplikacji.")

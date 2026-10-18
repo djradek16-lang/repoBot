@@ -283,8 +283,6 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
                     else:
                         image_url = att.proxy_url or att.url
 
-                status_note = " • 💾 *Zabezpieczono w logach*" if reuploaded_file else ""
-                att_lines.append(f"{icon} **{fname}** (`{fsize}` • `{ctype}`){status_note}")
 
             fields.append({
                 "name": f"📎 Usunięte Załączniki ({len(message.attachments)})",
@@ -757,6 +755,97 @@ class LogsCog(commands.GroupCog, name="logs", description="Konfiguracja i przegl
     # ------------------------------------------------------------------ #
     # Komendy konfiguracyjne (/logs ...)
     # ------------------------------------------------------------------ #
+
+    @app_commands.command(name="setchannel", description="Ustaw główny kanał logów serwera.")
+    @app_commands.describe(channel="Kanał tekstowy, na który będą wysyłane logi serwera.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def set_channel(self, interaction: discord.Interaction, channel: discord.TextChannel) -> None:
+        assert interaction.guild is not None
+        try:
+            await self.bot.db.execute(
+                "INSERT INTO guild_config (guild_id, log_channel_id, logs_enabled) VALUES (?, ?, 1) "
+                "ON CONFLICT(guild_id) DO UPDATE SET log_channel_id = excluded.log_channel_id, logs_enabled = 1",
+                (interaction.guild.id, channel.id),
+            )
+        except Exception:
+            logger.exception("Nie udało się zapisać log_channel_id dla guild_id=%s", interaction.guild.id)
+            await interaction.response.send_message(
+                "❌ Nie udało się zapisać ustawienia w bazie. Spróbuj ponownie później.", ephemeral=True
+            )
+            return
+
+        self.invalidate_cache(interaction.guild.id)
+        embed = create_embed(
+            title="✅ Ustawiono Główny Kanał Logów",
+            description=f"Wszystkie zdarzenia serwera będą teraz rejestrowane na kanale {channel.mention}.",
+            color=Color.CREATE,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="resetchannel", description="Wyłącz główny kanał logów serwera.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def reset_channel(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild is not None
+        try:
+            await self.bot.db.execute(
+                "UPDATE guild_config SET log_channel_id = NULL WHERE guild_id = ?",
+                (interaction.guild.id,),
+            )
+        except Exception:
+            logger.exception("Nie udało się wyczyścić log_channel_id dla guild_id=%s", interaction.guild.id)
+            await interaction.response.send_message(
+                "❌ Nie udało się zapisać ustawienia w bazie. Spróbuj ponownie później.", ephemeral=True
+            )
+            return
+
+        self.invalidate_cache(interaction.guild.id)
+        embed = create_embed(
+            title="✅ Wyłączono Główny Kanał Logów",
+            description="Rejestracja logów na głównym kanale została wyłączona.",
+            color=Color.RESTORE,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="status", description="Wyświetl aktualną konfigurację kanałów logów serwera.")
+    @app_commands.checks.has_permissions(manage_guild=True)
+    @app_commands.guild_only()
+    async def status_channel(self, interaction: discord.Interaction) -> None:
+        assert interaction.guild is not None
+        cfg = await self.bot.db.fetchone(
+            "SELECT log_channel_id, member_log_channel_id, attachment_log_channel_id, logs_enabled "
+            "FROM guild_config WHERE guild_id = ?",
+            (interaction.guild.id,),
+        )
+        main_ch = f"<#{cfg['log_channel_id']}>" if cfg and cfg["log_channel_id"] else "*Nieustawiony*"
+        att_ch = (
+            f"<#{cfg['attachment_log_channel_id']}>"
+            if cfg and cfg.get("attachment_log_channel_id")
+            else f"Główny kanał ({main_ch})"
+        )
+        mem_ch = (
+            f"<#{cfg['member_log_channel_id']}>"
+            if cfg and cfg.get("member_log_channel_id")
+            else f"Główny kanał ({main_ch})"
+        )
+        status_str = "✅ Włączone" if (cfg and cfg.get("logs_enabled", 1)) else "❌ Wyłączone"
+
+        embed = create_embed(
+            title="⚙️ Status Konfiguracji Logów Serwera",
+            description=(
+                f"**Stan logowania:** {status_str}\n\n"
+                f"📝 **Główny kanał logów:** {main_ch}\n"
+                f"📎 **Logi plików i zdjęć:** {att_ch}\n"
+                f"👥 **Logi dołączeń i wyjść:** {mem_ch}\n\n"
+                f"> Komendy zmiany:\n"
+                f"> • `/logs setchannel #kanał` — główny\n"
+                f"> • `/logs setattachmentchannel #kanał` — usunięte pliki i zdjęcia\n"
+                f"> • `/logs setmemberchannel #kanał` — wejścia/wyjścia"
+            ),
+            color=Color.VOICE,
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
     @app_commands.command(name="setmemberchannel", description="Ustaw osobny kanał na logi wejść/wyjść członków.")
     @app_commands.describe(channel="Kanał tekstowy, na który mają iść logi dołączeń i wyjść.")
