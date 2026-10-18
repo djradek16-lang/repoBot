@@ -43,6 +43,7 @@ def build_fleet_embed(
     search_query: str | None = None,
     image_filename: str | None = "flota.png",
     has_image: bool = True,
+    thumbnail_url: str | None = None,
 ) -> discord.Embed:
     """Tworzy ulepszony embed ze stroną floty organizacji z wielkimi banerami kart."""
     gas_count = sum(1 for x in vehicles if x.get("fuel") == "Benzyna")
@@ -62,6 +63,9 @@ def build_fleet_embed(
         ),
         color=0xE67E22,
     )
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
+
     if search_query:
         embed.description = f"🔍 **Wyniki wyszukiwania dla:** `{search_query}` ({len(vehicles)} aut)\n\n" + embed.description
 
@@ -159,7 +163,7 @@ def build_detail_embed(detail: dict[str, Any]) -> discord.Embed:
     return embed
 
 
-def build_stats_embed(vehicles: list[dict[str, Any]]) -> discord.Embed:
+def build_stats_embed(vehicles: list[dict[str, Any]], thumbnail_url: str | None = None) -> discord.Embed:
     """Tworzy embed z kompleksowym raportem statystycznym floty Team77."""
     total_count = len(vehicles)
     models_counter = Counter(v["model"] for v in vehicles)
@@ -179,6 +183,8 @@ def build_stats_embed(vehicles: list[dict[str, Any]]) -> discord.Embed:
         ),
         color=0x2ECC71,
     )
+    if thumbnail_url:
+        embed.set_thumbnail(url=thumbnail_url)
     embed.add_field(name="🏎️ Najpopularniejsze Modele", value=top_models, inline=True)
     embed.add_field(name="👑 Najwięcej Aut w Org", value=top_owners, inline=True)
     embed.set_footer(
@@ -230,12 +236,16 @@ class FleetPaginationView(ui.View):
         vehicles: list[dict[str, Any]],
         fleet_service: FleetService,
         search_query: str | None = None,
+        guild: discord.Guild | None = None,
+        thumbnail_url: str | None = None,
         timeout: float = 300,
     ) -> None:
         super().__init__(timeout=timeout)
         self.vehicles = vehicles
         self.fleet_service = fleet_service
         self.search_query = search_query
+        self.guild = guild
+        self.thumbnail_url = thumbnail_url or (guild.icon.url if guild and guild.icon else None)
         self.current_page = 0
         self.total_pages = max(1, math.ceil(len(vehicles) / ITEMS_PER_PAGE))
         self._update_components()
@@ -248,7 +258,15 @@ class FleetPaginationView(ui.View):
         buf = generate_fleet_cards_image(page_items)
         fname = f"flota_p{self.current_page}_{int(time.time() * 1000)}.png"
         file = discord.File(buf, filename=fname)
-        embed = build_fleet_embed(self.vehicles, self.current_page, self.total_pages, self.search_query, image_filename=fname, has_image=True)
+        embed = build_fleet_embed(
+            self.vehicles,
+            self.current_page,
+            self.total_pages,
+            self.search_query,
+            image_filename=fname,
+            has_image=True,
+            thumbnail_url=self.thumbnail_url,
+        )
         return embed, file
 
     def _update_components(self) -> None:
@@ -320,7 +338,7 @@ class FleetPaginationView(ui.View):
             await interaction.edit_original_response(embed=embed, attachments=[file], view=self)
 
         async def _show_stats(interaction: discord.Interaction):
-            stats_embed = build_stats_embed(self.vehicles)
+            stats_embed = build_stats_embed(self.vehicles, thumbnail_url=self.thumbnail_url)
             await interaction.response.send_message(embed=stats_embed, ephemeral=True)
 
         btn_first.callback = _first
